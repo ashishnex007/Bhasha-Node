@@ -1,0 +1,11 @@
+- [x] OCR
+- [ ] Video - MP4, MOV, AVI, WMV, MKV, FLV, WebM
+- [ ] Translation Engine - Marathi, Hindi, English
+- [ ] Audio - MP3, WAV, AAC, M4A, FLAC, WMA, OGG
+- [ ] Video Subtitles / Captions - SRT / VTT
+- [ ] Text To Speech
+- [ ] ASR
+- [ ] Auto source Language detection + user selected target langugage
+- [ ] Async processing and job status and complete notification
+- [ ] Download output
+- [ ] Admin, User RBAC

@@ -1,0 +1,3 @@
+https://huggingface.co/facebook/seamless-m4t-v2-large can be used but high resources 
+
+C:\Users\ashis\AppData\Local\Temp\cuda for cuda12.1
