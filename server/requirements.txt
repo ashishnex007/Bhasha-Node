@@ -1,0 +1,10 @@
+faster-whisper 
+torch 
+torchaudio 
+soundfile 
+sentencepiece 
+protobuf
+transformers<=4.56.2
+fastapi
+uvicorn
+pydantic
