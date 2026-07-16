@@ -1,3 +1,7 @@
+import os
+from dotenv import load_dotenv
+load_dotenv()   # loads .env
+
 import time
 import torch
 import soundfile as sf
@@ -11,8 +15,13 @@ from huggingface_hub import login
 print("[SYSTEM] Booting Offline ML Pipeline on CPU...")
 
 print("[SYSTEM] Logging into HuggingFace Hub...")
-# Keep your token exactly as you have it
-login(token="")
+
+HF_TOKEN = os.getenv("HF_TOKEN")
+
+if not HF_TOKEN:
+    raise RuntimeError("HF_TOKEN not found in environment")
+
+login(token=HF_TOKEN)
 
 # ASR: Faster Whisper (8-bit Quantized)
 print("[LOAD] Loading ASR (Faster-Whisper INT8)...")

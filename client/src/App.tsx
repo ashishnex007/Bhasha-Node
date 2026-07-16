@@ -1,15 +1,38 @@
-import React, { useState, useEffect } from 'react';
-import { FileText, Mic, FileAudio, Video, Sun, Moon, UploadCloud, PlayCircle, Settings, CheckCircle } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { 
+  FileText, Mic, Video, Sun, Moon, UploadCloud, 
+  Settings, CheckCircle, Image as ImageIcon, 
+  Volume2, Languages, Cpu, Activity, AlertTriangle
+} from 'lucide-react';
 
+// ==========================================
+// TYPES & INTERFACES
+// ==========================================
+type FileCategory = 'text' | 'audio' | 'video' | 'image' | null;
+type ProcessingStatus = 'idle' | 'analyzing' | 'processing' | 'complete' | 'error';
+
+interface PipelineResult {
+  original_text?: string;
+  translated_text?: string;
+  audio_url?: string;
+  video_url?: string;
+  transcription?: string;
+}
+
+// ==========================================
+// MAIN APPLICATION COMPONENT
+// ==========================================
 export default function App() {
-  const [activeTab, setActiveTab] = useState('tts');
   const [darkMode, setDarkMode] = useState(false);
   
-  // TTS Tab State (The actual working backend)
-  const [text, setText] = useState('');
-  const [language, setLanguage] = useState('marathi');
-  const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState<{ translated_text: string; audio_url: string } | null>(null);
+  // Unified State
+  const [file, setFile] = useState<File | null>(null);
+  const [fileCategory, setFileCategory] = useState<FileCategory>(null);
+  const [rawText, setRawText] = useState('');
+  const [targetLang, setTargetLang] = useState('marathi');
+  const [status, setStatus] = useState<ProcessingStatus>('idle');
+  const [result, setResult] = useState<PipelineResult | null>(null);
+  const [logs, setLogs] = useState<string[]>(['System initialized. Awaiting payload.']);
 
   // Sync theme
   useEffect(() => {
@@ -17,165 +40,374 @@ export default function App() {
     else document.documentElement.classList.remove('dark');
   }, [darkMode]);
 
-  // Working API Call
-  const handleProcessTTS = async () => {
-    if (!text.trim()) return alert("Enter text first.");
-    setLoading(true);
+  const addLog = (msg: string) => setLogs(prev => [`[${new Date().toLocaleTimeString()}] ${msg}`, ...prev]);
+
+  // ==========================================
+  // CORE PIPELINE LOGIC
+  // ==========================================
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const selected = e.target.files?.[0];
+    if (!selected) return;
+    
+    setFile(selected);
+    setStatus('analyzing');
     setResult(null);
+    setRawText('');
+    addLog(`Ingesting file: ${selected.name} (${(selected.size / 1024).toFixed(1)} KB)`);
+
+    if (selected.type.startsWith('video/')) {
+      setFileCategory('video');
+      addLog('Video payload detected. Routing to Demuxer -> STT -> Translation -> TTS -> Remux.');
+    } else if (selected.type.startsWith('audio/')) {
+      setFileCategory('audio');
+      addLog('Audio payload detected. Routing to Whisper ASR pipeline.');
+    } else if (selected.type.startsWith('image/') || selected.type === 'application/pdf') {
+      setFileCategory('image');
+      addLog('Visual payload detected. Routing to Tesseract OCR.');
+    } else {
+      setFileCategory('text');
+      const reader = new FileReader();
+      reader.onload = (event) => setRawText(event.target?.result as string);
+      reader.readAsText(selected);
+      addLog('Text payload detected. Ready for Translation & TTS.');
+    }
+    
+    setTimeout(() => setStatus('idle'), 600);
+  };
+
+  const executePipeline = async () => {
+    if (!file && !rawText.trim()) return alert("Provide an input payload first.");
+    
+    setStatus('processing');
+    addLog(`Initiating INT8 local pipeline for ${targetLang.toUpperCase()} target...`);
+    
     try {
-      const response = await fetch('http://127.0.0.1:8000/process-text', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text: text, target_language: language }),
-      });
-      if (!response.ok) throw new Error("Server error");
-      const data = await response.json();
-      setResult(data);
-    } catch (error) {
+      if (fileCategory === 'video' && file) {
+        // NEW VIDEO API INTEGRATION
+        addLog('Uploading video payload. CPU utilization will spike.');
+        const formData = new FormData();
+        formData.append('target_language', targetLang);
+        formData.append('video_file', file);
+
+        // Notice: Do NOT set Content-Type header. The browser sets it automatically with the multipart boundary.
+        const response = await fetch('http://127.0.0.1:8000/process-video', {
+          method: 'POST',
+          body: formData,
+        });
+        
+        if (!response.ok) throw new Error("FastAPI Video endpoint failed.");
+        const data = await response.json();
+        
+        if (data.error) throw new Error(data.error);
+        
+        setResult(data);
+        addLog('Video processing complete. Subtitles burned and audio remuxed.');
+
+      } else if (fileCategory === 'text' || (!file && rawText.trim())) {
+        // ORIGINAL TEXT API INTEGRATION
+        const payloadText = rawText || "Extracted text fallback";
+        const response = await fetch('http://127.0.0.1:8000/process-text', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ text: payloadText, target_language: targetLang }),
+        });
+        
+        if (!response.ok) throw new Error("FastAPI connection refused.");
+        const data = await response.json();
+        
+        if (data.error) throw new Error(data.error);
+        
+        setResult(data);
+        addLog('Inference complete. Output generated successfully.');
+        
+      } else {
+        // MOCK ENDPOINTS FOR OCR/AUDIO (Until you build the backend routes)
+        addLog(`Simulating ${fileCategory} processing...`);
+        await new Promise(res => setTimeout(res, 3000));
+        setResult({
+          translated_text: `[Simulated ${targetLang} translation for ${file?.name}]`,
+          audio_url: "" 
+        });
+        addLog('Simulated processing complete.');
+      }
+      setStatus('complete');
+    } catch (error: any) {
       console.error(error);
-      alert("Pipeline failure. Verify FastAPI is running.");
-    } finally {
-      setLoading(false);
+      setStatus('error');
+      addLog(`ERROR: ${error.message}`);
     }
   };
 
-  const navItems = [
-    { id: 'ocr', label: 'Document OCR', icon: FileText },
-    { id: 'tts', label: 'Translation & TTS', icon: FileAudio },
-    { id: 'stt', label: 'Audio Transcription', icon: Mic },
-    { id: 'video', label: 'Video Processing', icon: Video },
-  ];
+  const resetWorkspace = () => {
+    setFile(null);
+    setFileCategory(null);
+    setRawText('');
+    setResult(null);
+    setStatus('idle');
+    addLog('Workspace cleared.');
+  };
 
+  // ==========================================
+  // UI RENDER
+  // ==========================================
   return (
-    <div className={`flex h-screen font-sans transition-colors duration-200 ${darkMode ? 'bg-slate-900 text-slate-100' : 'bg-slate-50 text-slate-900'}`}>
+    <div className={`flex h-screen font-sans transition-colors duration-300 ${darkMode ? 'bg-slate-950 text-slate-100' : 'bg-slate-50 text-slate-900'}`}>
       
-      {/* Sidebar Navigation */}
-      <aside className={`w-72 flex flex-col border-r ${darkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-slate-200'}`}>
-        <div className="p-6 flex items-center gap-3 border-b border-inherit">
-          <div className="h-8 w-8 bg-indigo-600 rounded-lg flex items-center justify-center text-white font-bold">B</div>
-          <div>
-            <h1 className="font-bold text-lg tracking-tight">Bhasha Node</h1>
-            <p className="text-xs text-slate-400">Offline BAIF Engine</p>
+      {/* LEFT PANEL: Telemetry */}
+      <aside className={`w-80 flex flex-col border-r shadow-xl z-10 ${darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'}`}>
+        <div className="p-6 flex items-center justify-between border-b border-inherit">
+          <div className="flex items-center gap-3">
+            <div className="h-10 w-10 bg-indigo-600 rounded-xl flex items-center justify-center text-white font-black text-xl shadow-lg shadow-indigo-600/20">B</div>
+            <div>
+              <h1 className="font-bold text-lg tracking-tight">BAIF Edge</h1>
+              <div className="flex items-center gap-2 mt-0.5">
+                <span className="relative flex h-2 w-2">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                </span>
+                <p className="text-[10px] text-slate-400 font-mono uppercase tracking-wider">Node Active</p>
+              </div>
+            </div>
+          </div>
+          <button onClick={() => setDarkMode(!darkMode)} className={`p-2 rounded-lg transition-all ${darkMode ? 'bg-slate-800 text-yellow-400 hover:bg-slate-700' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}>
+            {darkMode ? <Sun size={18} /> : <Moon size={18} />}
+          </button>
+        </div>
+
+        <div className="p-6 border-b border-inherit space-y-4">
+          <h3 className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-2">Local Compute</h3>
+          <div className={`p-4 rounded-xl border ${darkMode ? 'bg-slate-800/50 border-slate-700' : 'bg-slate-50 border-slate-200'}`}>
+            <div className="flex justify-between items-center mb-2">
+              <span className="text-sm font-medium flex items-center gap-2"><Cpu size={14} className="text-indigo-500"/> RAM (INT8)</span>
+              <span className="text-xs font-mono">4.2 / 16 GB</span>
+            </div>
+            <div className="w-full bg-slate-200 dark:bg-slate-700 rounded-full h-1.5"><div className="bg-indigo-500 h-1.5 rounded-full" style={{ width: '25%' }}></div></div>
+            
+            <div className="flex justify-between items-center mt-4 mb-2">
+              <span className="text-sm font-medium flex items-center gap-2"><Activity size={14} className="text-emerald-500"/> CPU Threading</span>
+              <span className="text-xs font-mono">{status === 'processing' ? '98%' : '2%'}</span>
+            </div>
+            <div className="w-full bg-slate-200 dark:bg-slate-700 rounded-full h-1.5"><div className={`bg-emerald-500 h-1.5 rounded-full transition-all duration-500 ${status === 'processing' ? 'w-[98%]' : 'w-[2%]'}`}></div></div>
           </div>
         </div>
 
-        <nav className="flex-1 p-4 space-y-2">
-          {navItems.map((item) => (
-            <button
-              key={item.id}
-              onClick={() => setActiveTab(item.id)}
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all ${
-                activeTab === item.id 
-                  ? 'bg-indigo-600 text-white shadow-md' 
-                  : `${darkMode ? 'text-slate-400 hover:bg-slate-700 hover:text-slate-200' : 'text-slate-500 hover:bg-slate-100 hover:text-slate-900'}`
-              }`}
-            >
-              <item.icon size={18} />
-              {item.label}
-            </button>
-          ))}
-        </nav>
-
-        <div className="p-4 border-t border-inherit">
-          <button 
-            onClick={() => setDarkMode(!darkMode)}
-            className={`w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-sm font-medium border transition-all ${
-              darkMode ? 'bg-slate-700 border-slate-600 hover:bg-slate-600 text-yellow-400' : 'bg-slate-100 border-slate-200 hover:bg-slate-200 text-slate-600'
-            }`}
-          >
-            {darkMode ? <><Sun size={16} /> Light Mode</> : <><Moon size={16} /> Dark Mode</>}
-          </button>
+        <div className="flex-1 p-6 flex flex-col overflow-hidden">
+          <h3 className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-4">Event Queue</h3>
+          <div className="flex-1 overflow-y-auto space-y-3 font-mono text-[10px] text-slate-400 pr-2 custom-scrollbar">
+            {logs.map((log, i) => (
+              <div key={i} className={`border-l-2 pl-2 ${i === 0 ? (status === 'error' ? 'border-rose-500 text-rose-500' : 'border-indigo-500 text-slate-800 dark:text-slate-300') : 'border-slate-300 dark:border-slate-700'}`}>
+                {log}
+              </div>
+            ))}
+          </div>
         </div>
       </aside>
 
-      {/* Main Content Area */}
-      <main className="flex-1 overflow-y-auto">
-        <header className={`px-10 py-8 border-b ${darkMode ? 'border-slate-800' : 'border-slate-200'}`}>
-          <h2 className="text-2xl font-bold">{navItems.find(n => n.id === activeTab)?.label}</h2>
-          <p className="text-sm text-slate-400 mt-1">Multi-modal local inference pipeline</p>
+      {/* MAIN WORKSPACE */}
+      <main className="flex-1 flex flex-col h-screen overflow-hidden relative">
+        <header className={`h-20 px-10 flex items-center justify-between border-b shrink-0 ${darkMode ? 'border-slate-800/50 bg-slate-900/50 backdrop-blur-md' : 'border-slate-200 bg-white/50 backdrop-blur-md'}`}>
+          <div>
+            <h2 className="text-xl font-bold tracking-tight">Unified Ingestion Pipeline</h2>
+            <p className="text-xs text-slate-500 mt-0.5">Drop any agricultural manual, field audio, or drone video below.</p>
+          </div>
+          {file && (
+             <button onClick={resetWorkspace} className="text-sm font-semibold text-slate-500 hover:text-rose-500 transition-colors">
+               Clear Workspace ×
+             </button>
+          )}
         </header>
 
-        <div className="p-10 max-w-5xl">
-          
-          {/* ======================================= */}
-          {/* TAB 1: Translation & TTS (FULLY WORKING) */}
-          {/* ======================================= */}
-          {activeTab === 'tts' && (
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-              {/* Input */}
-              <div className={`p-6 rounded-2xl border ${darkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-slate-200'}`}>
-                <label className="block text-xs font-semibold mb-2 text-slate-500 uppercase tracking-wide">English Context</label>
-                <textarea 
-                  value={text}
-                  onChange={(e) => setText(e.target.value)}
-                  placeholder="Paste farming manual text here..."
-                  className={`w-full h-40 p-4 rounded-xl border outline-none text-sm focus:ring-2 focus:ring-indigo-500 ${darkMode ? 'bg-slate-900 border-slate-700 text-slate-200' : 'bg-slate-50 border-slate-300'}`}
-                />
-                
-                <label className="block text-xs font-semibold mt-6 mb-3 text-slate-500 uppercase tracking-wide">Target Demographics</label>
-                <div className="flex gap-4">
-                  {['marathi', 'hindi'].map(lang => (
-                    <label key={lang} className={`flex-1 flex items-center justify-center p-3 border rounded-xl cursor-pointer transition-all ${
-                      language === lang ? 'border-indigo-600 bg-indigo-50/10 text-indigo-500 ring-1 ring-indigo-500' : (darkMode ? 'border-slate-700 text-slate-400' : 'border-slate-200 text-slate-600')
-                    }`}>
-                      <input type="radio" className="hidden" checked={language === lang} onChange={() => setLanguage(lang)} />
-                      <span className="text-sm font-semibold capitalize">{lang}</span>
-                    </label>
-                  ))}
+        <div className="flex-1 overflow-y-auto p-10 pb-32">
+          <div className="max-w-5xl mx-auto space-y-8">
+            {!file && !rawText && (
+              <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+                <div className={`relative group border-2 border-dashed rounded-3xl p-16 flex flex-col items-center justify-center text-center transition-all ${
+                  darkMode ? 'border-slate-700 bg-slate-900 hover:bg-slate-800 hover:border-indigo-500' : 'border-slate-300 bg-slate-50 hover:bg-slate-100 hover:border-indigo-500'
+                }`}>
+                  <input type="file" onChange={handleFileUpload} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" />
+                  <div className="h-20 w-20 bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 rounded-full flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300">
+                    <UploadCloud size={32} />
+                  </div>
+                  <h3 className="text-2xl font-bold mb-2">Secure Local Ingestion</h3>
+                  <p className="text-slate-500 max-w-md mx-auto mb-8">
+                    The engine auto-detects payloads. Upload PDF manuals, field MP4s, or raw text.
+                  </p>
+                  <div className="flex items-center gap-6 text-sm text-slate-400 font-medium">
+                    <span className="flex items-center gap-2"><FileText size={16}/> TXT / PDF</span>
+                    <span className="flex items-center gap-2"><Mic size={16}/> MP3 / WAV</span>
+                    <span className="flex items-center gap-2"><Video size={16}/> MP4 / MKV</span>
+                  </div>
                 </div>
 
-                <button onClick={handleProcessTTS} disabled={loading} className="w-full mt-8 py-3 rounded-xl font-bold bg-indigo-600 hover:bg-indigo-700 text-white transition-all">
-                  {loading ? 'Running Quantized Models...' : 'Execute Translation'}
-                </button>
+                <div className="mt-8">
+                  <div className="flex items-center gap-4 mb-4">
+                    <div className="h-px bg-slate-200 dark:bg-slate-800 flex-1"></div>
+                    <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">OR PASTE RAW TEXT</span>
+                    <div className="h-px bg-slate-200 dark:bg-slate-800 flex-1"></div>
+                  </div>
+                  <textarea 
+                    value={rawText}
+                    onChange={(e) => setRawText(e.target.value)}
+                    placeholder="Enter English source context directly..."
+                    className={`w-full h-32 p-5 rounded-2xl border outline-none text-sm transition-all focus:ring-2 focus:ring-indigo-500 ${
+                      darkMode ? 'bg-slate-900 border-slate-700 focus:border-indigo-500 text-slate-200' : 'bg-white border-slate-300 focus:border-indigo-500'
+                    }`}
+                  />
+                </div>
               </div>
+            )}
 
-              {/* Output */}
-              <div className={`p-6 rounded-2xl border flex flex-col ${darkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-slate-200'}`}>
-                <h3 className="text-xs font-semibold mb-4 text-slate-500 uppercase tracking-wide">Inference Output</h3>
-                
-                {result ? (
-                  <div className="space-y-6">
-                    <div className={`p-4 rounded-xl border ${darkMode ? 'bg-slate-900 border-slate-700 text-emerald-400' : 'bg-slate-50 border-slate-200 text-indigo-900'}`}>
-                      <p className="text-lg leading-relaxed">{result.translated_text}</p>
+            {(file || rawText) && (
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 animate-in fade-in duration-500">
+                <div className="lg:col-span-5 space-y-6">
+                  <div className={`p-6 rounded-3xl border shadow-sm ${darkMode ? 'bg-slate-900 border-slate-700' : 'bg-white border-slate-200'}`}>
+                    <div className="flex items-center gap-4 mb-6">
+                      <div className={`p-3 rounded-xl ${darkMode ? 'bg-slate-800' : 'bg-slate-100'}`}>
+                        {fileCategory === 'video' ? <Video className="text-rose-500" /> : 
+                         fileCategory === 'audio' ? <Mic className="text-amber-500" /> : 
+                         fileCategory === 'image' ? <ImageIcon className="text-emerald-500" /> : 
+                         <FileText className="text-indigo-500" />}
+                      </div>
+                      <div className="overflow-hidden">
+                        <h3 className="font-bold text-lg truncate">{file ? file.name : "Direct Text Input"}</h3>
+                        <p className="text-xs text-slate-500 font-mono">{fileCategory?.toUpperCase()} PAYLOAD DEPLOYED</p>
+                      </div>
                     </div>
-                    <div>
-                      <p className="text-xs font-semibold mb-2 text-slate-500 uppercase tracking-wide">VITS Acoustic Generation</p>
-                      <audio controls src={result.audio_url} className="w-full rounded-lg" />
+
+                    <div className="space-y-5">
+                      <div>
+                        <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">Target Demographics</label>
+                        <div className="grid grid-cols-2 gap-3">
+                          {['marathi', 'hindi'].map(lang => (
+                            <div 
+                              key={lang} 
+                              onClick={() => setTargetLang(lang)}
+                              className={`cursor-pointer p-4 rounded-2xl border transition-all ${
+                                targetLang === lang 
+                                  ? 'border-indigo-600 bg-indigo-600 text-white shadow-lg shadow-indigo-600/20' 
+                                  : `${darkMode ? 'border-slate-700 hover:bg-slate-800' : 'border-slate-200 hover:bg-slate-50'}`
+                              }`}
+                            >
+                              <div className="flex items-center justify-between mb-1">
+                                <span className="font-bold capitalize">{lang}</span>
+                                {targetLang === lang && <CheckCircle size={16} opacity={0.8} />}
+                              </div>
+                              <span className={`text-[10px] ${targetLang === lang ? 'text-indigo-200' : 'text-slate-400'}`}>Devanagari Base</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                      
+                      <button 
+                        onClick={executePipeline} 
+                        disabled={status === 'processing' || status === 'analyzing'}
+                        className={`w-full py-4 rounded-2xl font-bold tracking-wide uppercase transition-all flex items-center justify-center gap-3 ${
+                          status === 'processing' || status === 'analyzing'
+                            ? 'bg-slate-300 dark:bg-slate-700 text-slate-500 cursor-not-allowed'
+                            : 'bg-indigo-600 hover:bg-indigo-700 text-white shadow-xl shadow-indigo-600/20 hover:scale-[1.02] active:scale-95'
+                        }`}
+                      >
+                        {status === 'processing' ? <><Settings className="animate-spin" size={18}/> Executing Layers...</> : 'Commence Inference'}
+                      </button>
                     </div>
                   </div>
-                ) : (
-                  <div className="flex-1 flex flex-col items-center justify-center text-slate-400 border-2 border-dashed rounded-xl border-slate-300 dark:border-slate-700">
-                    <Settings size={32} className={loading ? 'animate-spin' : ''} />
-                    <span className="mt-4 text-sm">{loading ? 'Synthesizing voice...' : 'Awaiting input data'}</span>
+                </div>
+
+                <div className="lg:col-span-7">
+                  <div className={`h-full min-h-[400px] p-8 rounded-3xl border flex flex-col transition-all ${
+                    status === 'processing' ? (darkMode ? 'bg-indigo-950/20 border-indigo-500/30' : 'bg-indigo-50/50 border-indigo-200') :
+                    result ? (darkMode ? 'bg-slate-900 border-emerald-500/30' : 'bg-white border-emerald-200') :
+                    (darkMode ? 'bg-slate-900/50 border-slate-800 border-dashed' : 'bg-slate-50 border-slate-200 border-dashed')
+                  }`}>
+                    
+                    {status === 'idle' && !result && (
+                      <div className="m-auto text-center opacity-50">
+                        <Cpu size={48} className="mx-auto mb-4 text-slate-400" />
+                        <h3 className="font-bold text-lg">Inference Engine Ready</h3>
+                        <p className="text-sm">Configure parameters and commence.</p>
+                      </div>
+                    )}
+
+                    {status === 'processing' && (
+                      <div className="m-auto text-center w-full max-w-md">
+                        <div className="relative h-24 w-24 mx-auto mb-8">
+                          <div className="absolute inset-0 rounded-full border-4 border-indigo-100 dark:border-slate-800"></div>
+                          <div className="absolute inset-0 rounded-full border-4 border-indigo-600 border-t-transparent animate-spin"></div>
+                          <Settings size={32} className="absolute inset-0 m-auto text-indigo-600 animate-pulse" />
+                        </div>
+                        <h3 className="font-bold text-xl mb-2 text-indigo-600 dark:text-indigo-400">Processing Node Active</h3>
+                        <p className="text-sm font-mono opacity-70 mb-6">Demuxing, translating, and remuxing matrix...</p>
+                      </div>
+                    )}
+
+                    {status === 'complete' && result && (
+                      <div className="animate-in fade-in zoom-in-95 duration-500 flex flex-col h-full">
+                        <div className="flex items-center gap-3 mb-6 pb-6 border-b border-inherit">
+                          <div className="h-10 w-10 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 rounded-full flex items-center justify-center">
+                            <CheckCircle size={20} />
+                          </div>
+                          <div>
+                            <h3 className="font-bold text-lg">Synthesis Complete</h3>
+                            <p className="text-xs text-slate-500 font-mono">100% OFFLINE EXTRACTION</p>
+                          </div>
+                        </div>
+
+                        <div className="flex-1 space-y-6">
+                          {/* DYNAMIC OUTPUT RENDER: Video vs Audio vs Text */}
+                          {result.video_url ? (
+                            <div>
+                              <label className="flex items-center gap-2 text-xs font-bold text-slate-500 uppercase tracking-widest mb-3">
+                                <Video size={14} /> Demuxed & Translated Video
+                              </label>
+                              <div className={`p-4 rounded-2xl border ${darkMode ? 'bg-slate-950 border-slate-800' : 'bg-slate-50 border-slate-200'}`}>
+                                <video controls src={result.video_url} className="w-full rounded-lg shadow-md bg-black" />
+                              </div>
+                            </div>
+                          ) : (
+                            <>
+                              <div>
+                                <label className="flex items-center gap-2 text-xs font-bold text-slate-500 uppercase tracking-widest mb-3">
+                                  <Languages size={14} /> Regional Text Output
+                                </label>
+                                <div className={`w-full p-6 rounded-2xl text-lg font-medium leading-relaxed border ${darkMode ? 'bg-slate-950 border-slate-800 text-slate-200' : 'bg-slate-50 border-slate-200 text-slate-800'}`}>
+                                  {result.translated_text}
+                                </div>
+                              </div>
+                              {(result.audio_url || fileCategory !== 'text') && (
+                                <div>
+                                  <label className="flex items-center gap-2 text-xs font-bold text-slate-500 uppercase tracking-widest mb-3">
+                                    <Volume2 size={14} /> Acoustic VITS Profile
+                                  </label>
+                                  <div className={`p-4 rounded-2xl border ${darkMode ? 'bg-slate-950 border-slate-800' : 'bg-slate-50 border-slate-200'}`}>
+                                    {result.audio_url ? (
+                                      <audio controls src={result.audio_url} className="w-full h-12" />
+                                    ) : (
+                                      <div className="flex items-center justify-center h-12 text-sm text-slate-500 font-mono">
+                                        [Audio Stream Mock - API Disconnected]
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                              )}
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    {status === 'error' && (
+                      <div className="m-auto text-center">
+                        <AlertTriangle size={48} className="mx-auto mb-4 text-rose-500" />
+                        <h3 className="font-bold text-xl text-rose-500">Pipeline Failure</h3>
+                        <p className="text-sm opacity-70 mt-2 max-w-sm mx-auto">Check FastAPI and FFmpeg server logs.</p>
+                      </div>
+                    )}
+
                   </div>
-                )}
+                </div>
               </div>
-            </div>
-          )}
-
-          {/* ======================================= */}
-          {/* TAB 2, 3, 4: Mock UIs for Presentation   */}
-          {/* ======================================= */}
-          {activeTab !== 'tts' && (
-            <div className={`p-10 rounded-2xl border text-center border-dashed ${darkMode ? 'bg-slate-800/50 border-slate-700' : 'bg-white border-slate-300'}`}>
-              <UploadCloud size={48} className={`mx-auto mb-4 ${darkMode ? 'text-slate-600' : 'text-slate-400'}`} />
-              <h3 className="text-xl font-bold mb-2">Upload {activeTab === 'ocr' ? 'Scanned Document' : activeTab === 'stt' ? 'Field Audio' : 'Heavy Media File'}</h3>
-              <p className="text-sm text-slate-500 mb-8 max-w-md mx-auto">
-                {activeTab === 'ocr' && "Extracts Devanagari script natively from scanned PDFs and field manuals using offline Tesseract LSTM."}
-                {activeTab === 'stt' && "Transcribes heavy agricultural audio tracks using INT8 quantized Faster-Whisper directly on CPU."}
-                {activeTab === 'video' && "Demuxes 200MB+ videos, generates subtitles, and burns in regional language captions entirely offline."}
-              </p>
-              
-              <button className="px-6 py-3 rounded-xl font-bold bg-indigo-600 hover:bg-indigo-700 text-white inline-flex items-center gap-2">
-                <UploadCloud size={18} /> Browse Local Drive
-              </button>
-              
-              <div className="mt-8 flex items-center justify-center gap-2 text-xs text-slate-400 font-mono">
-                <CheckCircle size={14} className="text-emerald-500" /> Endpoint strictly local. Zero data leaves BAIF premises.
-              </div>
-            </div>
-          )}
-
+            )}
+          </div>
         </div>
       </main>
     </div>

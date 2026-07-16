@@ -8,3 +8,4 @@ transformers<=4.56.2
 fastapi
 uvicorn
 pydantic
+python-dotenv

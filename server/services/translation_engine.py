@@ -1,3 +1,7 @@
+import os
+from dotenv import load_dotenv
+load_dotenv()   # loads .env
+
 import time
 import torch
 from transformers import AutoModelForSeq2SeqLM, AutoTokenizer
@@ -7,7 +11,12 @@ class TranslationService:
     def __init__(self):
         print("[LOAD] Booting Translation Engine (IndicTrans2)...")
         # Authentication required for gated AI4Bharat model
-        login(token="")
+        HF_TOKEN = os.getenv("HF_TOKEN")
+
+        if not HF_TOKEN:
+            raise RuntimeError("HF_TOKEN not found in environment")
+
+        login(token=HF_TOKEN)
         
         self.model_name = "ai4bharat/indictrans2-en-indic-dist-200M"
         self.tokenizer = AutoTokenizer.from_pretrained(self.model_name, trust_remote_code=True)
