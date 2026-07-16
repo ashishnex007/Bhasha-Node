@@ -314,7 +314,7 @@ export default function App() {
                 </div>
 
                 <div className="lg:col-span-7">
-                  <div className={`h-full min-h-[400px] p-8 rounded-3xl border flex flex-col transition-all ${
+                  <div className={`h-full min-h-100 p-8 rounded-3xl border flex flex-col transition-all ${
                     status === 'processing' ? (darkMode ? 'bg-indigo-950/20 border-indigo-500/30' : 'bg-indigo-50/50 border-indigo-200') :
                     result ? (darkMode ? 'bg-slate-900 border-emerald-500/30' : 'bg-white border-emerald-200') :
                     (darkMode ? 'bg-slate-900/50 border-slate-800 border-dashed' : 'bg-slate-50 border-slate-200 border-dashed')
