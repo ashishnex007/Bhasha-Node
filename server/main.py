@@ -10,10 +10,12 @@ from services.tts_engine import TTSService
 from services.asr_engine import ASRService
 from services.video_engine import VideoService
 
+# 1. DEFINE AND ENFORCE THE ISOLATED OUTPUT DIRECTORY
+OUTPUT_DIR = "outputs"
+os.makedirs(OUTPUT_DIR, exist_ok=True)
+
 app = FastAPI(title="BAIF Offline AI Engine")
 
-# FIX: Explicitly list localhost and 127.0.0.1 ports instead of using a wildcard "*"
-# This satisfies modern browser credential constraints perfectly.
 origins = [
     "http://localhost:5173",
     "http://127.0.0.1:5173",
@@ -60,8 +62,12 @@ async def process_text_pipeline(request: ProcessingRequest):
         return {"error": "Unsupported language"}
 
     translated_text = translator.translate(request.text, target_lang=config["trans"])
+    
+    # 2. ISOLATE TTS OUTPUT
     output_filename = f"output_{request.target_language}.wav"
-    tts.generate_voice(translated_text, lang_code=config["tts"], output_file=output_filename)
+    output_path = os.path.join(OUTPUT_DIR, output_filename)
+    
+    tts.generate_voice(translated_text, lang_code=config["tts"], output_file=output_path)
     
     return {
         "status": "success",
@@ -72,7 +78,7 @@ async def process_text_pipeline(request: ProcessingRequest):
 
 @app.post("/process-video")
 async def process_video_pipeline(
-    target_language: str = Form(...),  # FIX: Explicitly mark this as Form data
+    target_language: str = Form(...), 
     video_file: UploadFile = File(...)
 ):
     lang_map = {
@@ -84,14 +90,15 @@ async def process_video_pipeline(
     if not config:
         return {"error": "Unsupported language"}
 
-    # Save uploaded video to disk
-    input_path = f"temp_input_{video_file.filename}"
+    # 3. ISOLATE VIDEO INGESTION
+    input_filename = f"temp_input_{video_file.filename}"
+    input_path = os.path.join(OUTPUT_DIR, input_filename)
+    
     with open(input_path, "wb") as buffer:
         shutil.copyfileobj(video_file.file, buffer)
 
     try:
-        # Run the synchronous pipeline
-        output_video_path, translated_script = video_engine.process_video(
+        output_video_filename, translated_script = video_engine.process_video(
             input_video=input_path,
             target_lang_code=config["trans"],
             tts_lang_code=config["tts"]
@@ -100,16 +107,15 @@ async def process_video_pipeline(
         return {
             "status": "success",
             "translated_text": translated_script,
-            "video_url": f"http://127.0.0.1:8000/{output_video_path}"
+            "video_url": f"http://127.0.0.1:8000/{output_video_filename}"
         }
     except Exception as e:
         return {"error": str(e)}
     finally:
-        # Cleanup the raw upload
         if os.path.exists(input_path): os.remove(input_path)
 
-# Serve static audio files
-app.mount("/", StaticFiles(directory="."), name="static")
+# 4. RESTRICT STATIC FILE SERVING TO THE OUTPUT DIRECTORY ONLY
+app.mount("/", StaticFiles(directory=OUTPUT_DIR), name="static")
 
 if __name__ == "__main__":
     import uvicorn
