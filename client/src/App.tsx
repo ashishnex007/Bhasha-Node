@@ -2,12 +2,9 @@ import React, { useState, useEffect, useRef } from 'react';
 import { 
   FileText, Mic, Video, Sun, Moon, UploadCloud, 
   Settings, CheckCircle, Image as ImageIcon, 
-  Volume2, Languages, Cpu, Activity, AlertTriangle
+  Volume2, Languages, Cpu, Activity, AlertTriangle, Square
 } from 'lucide-react';
 
-// ==========================================
-// TYPES & INTERFACES
-// ==========================================
 type FileCategory = 'text' | 'audio' | 'video' | 'image' | null;
 type ProcessingStatus = 'idle' | 'analyzing' | 'processing' | 'complete' | 'error';
 
@@ -19,9 +16,6 @@ interface PipelineResult {
   transcription?: string;
 }
 
-// ==========================================
-// MAIN APPLICATION COMPONENT
-// ==========================================
 export default function App() {
   const [darkMode, setDarkMode] = useState(false);
   
@@ -34,13 +28,61 @@ export default function App() {
   const [result, setResult] = useState<PipelineResult | null>(null);
   const [logs, setLogs] = useState<string[]>(['System initialized. Awaiting payload.']);
 
-  // Sync theme
+  // Recording State
+  const [isRecording, setIsRecording] = useState(false);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
+
   useEffect(() => {
     if (darkMode) document.documentElement.classList.add('dark');
     else document.documentElement.classList.remove('dark');
   }, [darkMode]);
 
   const addLog = (msg: string) => setLogs(prev => [`[${new Date().toLocaleTimeString()}] ${msg}`, ...prev]);
+
+  // ==========================================
+  // MICROPHONE RECORDING LOGIC
+  // ==========================================
+  const startRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mediaRecorder = new MediaRecorder(stream);
+      mediaRecorderRef.current = mediaRecorder;
+      audioChunksRef.current = [];
+
+      mediaRecorder.ondataavailable = (e) => {
+        if (e.data.size > 0) audioChunksRef.current.push(e.data);
+      };
+
+      mediaRecorder.onstop = () => {
+        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+        const audioFile = new File([audioBlob], 'live_recording.webm', { type: 'audio/webm' });
+        
+        setFile(audioFile);
+        setFileCategory('audio');
+        setStatus('idle');
+        addLog('Live audio footprint captured. Ready for Whisper ASR.');
+        
+        // Release the microphone
+        stream.getTracks().forEach(track => track.stop());
+      };
+
+      mediaRecorder.start();
+      setIsRecording(true);
+      addLog('Microphone hardware engaged. Recording stream...');
+    } catch (err) {
+      console.error(err);
+      alert("Microphone access denied. Check your browser permissions.");
+      addLog('ERROR: Hardware permission denied for microphone.');
+    }
+  };
+
+  const stopRecording = () => {
+    if (mediaRecorderRef.current && isRecording) {
+      mediaRecorderRef.current.stop();
+      setIsRecording(false);
+    }
+  };
 
   // ==========================================
   // CORE PIPELINE LOGIC
@@ -83,28 +125,41 @@ export default function App() {
     
     try {
       if (fileCategory === 'video' && file) {
-        // NEW VIDEO API INTEGRATION
         addLog('Uploading video payload. CPU utilization will spike.');
         const formData = new FormData();
         formData.append('target_language', targetLang);
         formData.append('video_file', file);
 
-        // Notice: Do NOT set Content-Type header. The browser sets it automatically with the multipart boundary.
         const response = await fetch('http://127.0.0.1:8000/process-video', {
-          method: 'POST',
-          body: formData,
+          method: 'POST', body: formData,
         });
         
         if (!response.ok) throw new Error("FastAPI Video endpoint failed.");
         const data = await response.json();
-        
         if (data.error) throw new Error(data.error);
         
         setResult(data);
         addLog('Video processing complete. Subtitles burned and audio remuxed.');
 
+      } else if (fileCategory === 'audio' && file) {
+        // NEW: LIVE AUDIO INTEGRATION
+        addLog('Transmitting raw audio footprint to local Whisper ASR.');
+        const formData = new FormData();
+        formData.append('target_language', targetLang);
+        formData.append('audio_file', file);
+
+        const response = await fetch('http://127.0.0.1:8000/process-audio', {
+          method: 'POST', body: formData,
+        });
+        
+        if (!response.ok) throw new Error("FastAPI Audio endpoint failed.");
+        const data = await response.json();
+        if (data.error) throw new Error(data.error);
+        
+        setResult(data);
+        addLog('ASR to TTS pipeline execution complete.');
+
       } else if (fileCategory === 'text' || (!file && rawText.trim())) {
-        // ORIGINAL TEXT API INTEGRATION
         const payloadText = rawText || "Extracted text fallback";
         const response = await fetch('http://127.0.0.1:8000/process-text', {
           method: 'POST',
@@ -114,18 +169,17 @@ export default function App() {
         
         if (!response.ok) throw new Error("FastAPI connection refused.");
         const data = await response.json();
-        
         if (data.error) throw new Error(data.error);
         
         setResult(data);
         addLog('Inference complete. Output generated successfully.');
         
       } else {
-        // MOCK ENDPOINTS FOR OCR/AUDIO (Until you build the backend routes)
-        addLog(`Simulating ${fileCategory} processing...`);
+        // PDF / IMAGE FALLBACK
+        addLog(`Simulating ${fileCategory} processing (Tesseract OCR not yet wired)...`);
         await new Promise(res => setTimeout(res, 3000));
         setResult({
-          translated_text: `[Simulated ${targetLang} translation for ${file?.name}]`,
+          translated_text: `[Simulated ${targetLang} OCR translation for ${file?.name}]`,
           audio_url: "" 
         });
         addLog('Simulated processing complete.');
@@ -229,13 +283,32 @@ export default function App() {
                     <UploadCloud size={32} />
                   </div>
                   <h3 className="text-2xl font-bold mb-2">Secure Local Ingestion</h3>
-                  <p className="text-slate-500 max-w-md mx-auto mb-8">
-                    The engine auto-detects payloads. Upload PDF manuals, field MP4s, or raw text.
-                  </p>
-                  <div className="flex items-center gap-6 text-sm text-slate-400 font-medium">
-                    <span className="flex items-center gap-2"><FileText size={16}/> TXT / PDF</span>
-                    <span className="flex items-center gap-2"><Mic size={16}/> MP3 / WAV</span>
-                    <span className="flex items-center gap-2"><Video size={16}/> MP4 / MKV</span>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-xs font-semibold text-slate-500">
+                    <div className="flex flex-col items-center gap-2 p-3 rounded-xl bg-slate-100 dark:bg-slate-800"><FileText size={20} className="text-indigo-500"/> Docs (.txt)</div>
+                    <div className="flex flex-col items-center gap-2 p-3 rounded-xl bg-slate-100 dark:bg-slate-800"><ImageIcon size={20} className="text-emerald-500"/> Scans (.pdf)</div>
+                    <div className="flex flex-col items-center gap-2 p-3 rounded-xl bg-slate-100 dark:bg-slate-800"><Mic size={20} className="text-amber-500"/> Voice (.wav)</div>
+                    <div className="flex flex-col items-center gap-2 p-3 rounded-xl bg-slate-100 dark:bg-slate-800"><Video size={20} className="text-rose-500"/> Video (.mp4)</div>
+                  </div>
+                  
+                  {/* LIVE RECORDING MODULE */}
+                  <div className="flex flex-col items-center gap-4 z-20">
+                    <div className="flex items-center gap-4">
+                      {!isRecording ? (
+                        <button 
+                          onClick={startRecording}
+                          className="px-6 py-2.5 rounded-full font-bold text-sm bg-rose-50 text-rose-600 border border-rose-200 hover:bg-rose-100 hover:border-rose-300 transition-all flex items-center gap-2 shadow-sm"
+                        >
+                          <Mic size={16} /> Record Field Audio
+                        </button>
+                      ) : (
+                        <button 
+                          onClick={stopRecording}
+                          className="px-6 py-2.5 rounded-full font-bold text-sm bg-rose-600 text-white border border-rose-700 hover:bg-rose-700 transition-all flex items-center gap-2 animate-pulse shadow-lg shadow-rose-600/30"
+                        >
+                          <Square size={16} fill="currentColor" /> Stop Recording
+                        </button>
+                      )}
+                    </div>
                   </div>
                 </div>
 
@@ -271,6 +344,11 @@ export default function App() {
                       <div className="overflow-hidden">
                         <h3 className="font-bold text-lg truncate">{file ? file.name : "Direct Text Input"}</h3>
                         <p className="text-xs text-slate-500 font-mono">{fileCategory?.toUpperCase()} PAYLOAD DEPLOYED</p>
+
+                        {/* AUDIO PREVIEW PLAYER */}
+                        {fileCategory === 'audio' && file && (
+                           <audio controls src={URL.createObjectURL(file)} className="w-full h-8 outline-none mt-2 opacity-80" />
+                        )}
                       </div>
                     </div>
 
@@ -353,7 +431,6 @@ export default function App() {
                         </div>
 
                         <div className="flex-1 space-y-6">
-                          {/* DYNAMIC OUTPUT RENDER: Video vs Audio vs Text */}
                           {result.video_url ? (
                             <div>
                               <label className="flex items-center gap-2 text-xs font-bold text-slate-500 uppercase tracking-widest mb-3">
