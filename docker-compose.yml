@@ -1,0 +1,32 @@
+# ==========================================
+# BHASHA NODE - Docker Compose
+# Air-gapped edge deployment configuration
+# ==========================================
+version: "3.9"
+
+services:
+  bhasha-node:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: bhasha-node
+    ports:
+      - "8000:8000"
+    volumes:
+      # Persist outputs and database across container restarts
+      - ./server/outputs:/app/server/outputs
+      - ./server/data:/app/server/data
+      # Mount HuggingFace model cache for air-gapped operation
+      - huggingface-cache:/root/.cache/huggingface
+    environment:
+      - HF_TOKEN=${HF_TOKEN}
+      - HF_HUB_OFFLINE=1
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 5G
+
+volumes:
+  huggingface-cache:
+    driver: local

@@ -1,181 +1,107 @@
+"""
+Bhasha Node - FastAPI Application Entrypoint
+Assembles all routers, initializes ML services, mounts static outputs,
+and starts the background job worker.
+"""
 import os
-import shutil
-from fastapi import FastAPI, UploadFile, File, Form
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel
 
-from services.translation_engine import TranslationService
-from services.tts_engine import TTSService
-from services.asr_engine import ASRService
-from services.video_engine import VideoService
+from config import CORS_ORIGINS, OUTPUT_DIR
 
-# 1. DEFINE AND ENFORCE THE ISOLATED OUTPUT DIRECTORY
-OUTPUT_DIR = "outputs"
-os.makedirs(OUTPUT_DIR, exist_ok=True)
-
-app = FastAPI(title="BAIF Offline AI Engine")
-
-origins = [
-    "http://localhost:5173",
-    "http://127.0.0.1:5173",
-    "http://localhost:3000",
-    "http://127.0.0.1:3000"
-]
+# ==========================================
+# APP FACTORY
+# ==========================================
+app = FastAPI(
+    title="Bhasha Node - Offline AI Engine",
+    description="Enterprise air-gapped multimodal AI pipeline for rural environments.",
+    version="2.0.0",
+)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,
+    allow_origins=CORS_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-print("--- INITIALIZING AI CORE ---")
-print("--- INITIALIZING TRANSLATION SERVICE...")
-translator = TranslationService()
-print("INITIALIZED TRANSLATION SERVICE.")
-print("--- INITIALIZING TTS SERVICE...")
-tts = TTSService()
-print("INITIALIZED TTS SERVICE.")
-print("--- INITIALIZING ASR SERVICE...")
-asr = ASRService()
-print("INITIALIZED ASR SERVICE.")
-print("--- INITIALIZING VIDEO SERVICE...")
-video_engine = VideoService(asr=asr, translator=translator, tts=tts)
-print("INITIALIZED VIDEO SERVICE.")
-print("--- CORE READY ---")
+# ==========================================
+# MOUNT ROUTERS (before static files)
+# ==========================================
+from routers import jobs, history, stm, system
 
-class ProcessingRequest(BaseModel):
-    text: str
-    target_language: str
+app.include_router(jobs.router)
+app.include_router(history.router)
+app.include_router(stm.router)
+app.include_router(system.router)
 
-@app.post("/process-text")
-async def process_text_pipeline(request: ProcessingRequest):
-    lang_map = {
-        "marathi": {"trans": "mar_Deva", "tts": "mar"},
-        "hindi": {"trans": "hin_Deva", "tts": "hin"}
-    }
-    
-    config = lang_map.get(request.target_language.lower())
-    if not config:
-        return {"error": "Unsupported language"}
+# ==========================================
+# INITIALIZE ML SERVICES ON STARTUP
+# ==========================================
+@app.on_event("startup")
+def startup_event():
+    """
+    Load all ML models into memory and register them with the job worker.
+    This runs once at server boot — models stay resident in RAM.
+    """
+    print("\n" + "=" * 60)
+    print("  BHASHA NODE v2.0 — INITIALIZING AI CORE")
+    print("=" * 60)
 
-    translated_text = translator.translate(request.text, target_lang=config["trans"])
-    
-    # 2. ISOLATE TTS OUTPUT
-    output_filename = f"output_{request.target_language}.wav"
-    output_path = os.path.join(OUTPUT_DIR, output_filename)
-    
-    tts.generate_voice(translated_text, lang_code=config["tts"], output_file=output_path)
-    
-    return {
-        "status": "success",
-        "original_text": request.text,
-        "translated_text": translated_text,
-        "audio_url": f"http://127.0.0.1:8000/{output_filename}"
-    }
+    from services.translation_engine import TranslationService
+    from services.tts_engine import TTSService
+    from services.asr_engine import ASRService
+    from services.video_engine import VideoService
+    from services.ocr_engine import OCRService
+    from services.stm_engine import STMService
+    from services.system_engine import SystemService
+    from task_queue.job_worker import worker
 
-@app.post("/process-audio")
-async def process_audio_pipeline(
-    target_language: str = Form(...),
-    audio_file: UploadFile = File(...)
-):
-    import subprocess # Injected to ensure it runs
-    
-    lang_map = {
-        "marathi": {"trans": "mar_Deva", "tts": "mar"},
-        "hindi": {"trans": "hin_Deva", "tts": "hin"}
-    }
-    
-    config = lang_map.get(target_language.lower())
-    if not config:
-        return {"error": "Unsupported language"}
+    print("\n[1/6] Loading Translation Service (IndicTrans2 200M)...")
+    translator = TranslationService()
 
-    # Isolate ingestion
-    input_filename = f"temp_input_{audio_file.filename}"
-    input_path = os.path.join(OUTPUT_DIR, input_filename)
-    clean_audio_path = os.path.join(OUTPUT_DIR, f"clean_{audio_file.filename}.wav")
-    
-    with open(input_path, "wb") as buffer:
-        shutil.copyfileobj(audio_file.file, buffer)
+    print("[2/6] Loading TTS Service (Meta MMS VITS mar/hin)...")
+    tts = TTSService()
 
-    try:
-        # 1. FFMPEG NORMALIZATION: Convert messy .webm to clean 16kHz .wav
-        subprocess.run([
-            "ffmpeg", "-y", "-i", input_path, 
-            "-acodec", "pcm_s16le", "-ar", "16000", "-ac", "1", 
-            clean_audio_path
-        ], check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    print("[3/6] Loading ASR Service (Faster-Whisper INT8 Small)...")
+    asr = ASRService()
 
-        # 2. Transcribe the clean audio
-        english_text = asr.transcribe(clean_audio_path)
-        
-        # SAFEGUARD: Do not let empty audio crash PyTorch
-        if not english_text or english_text.isspace():
-            return {"error": "Audio stream was empty or contained no recognizable speech."}
-        
-        # 3. Translate the text
-        translated_text = translator.translate(english_text, target_lang=config["trans"])
-        
-        # 4. Generate native TTS
-        output_filename = f"output_audio_{target_language}.wav"
-        output_path = os.path.join(OUTPUT_DIR, output_filename)
-        tts.generate_voice(translated_text, lang_code=config["tts"], output_file=output_path)
+    print("[4/6] Loading Video Service (FFmpeg pipeline)...")
+    video_engine = VideoService(asr=asr, translator=translator, tts=tts)
 
-        return {
-            "status": "success",
-            "original_text": english_text,
-            "translated_text": translated_text,
-            "audio_url": f"http://127.0.0.1:8000/{output_filename}"
-        }
-    except Exception as e:
-        return {"error": str(e)}
-    finally:
-        # Cleanup temporary audio files
-        if os.path.exists(input_path): os.remove(input_path)
-        if os.path.exists(clean_audio_path): os.remove(clean_audio_path)
+    print("[5/6] Loading OCR Service (Tesseract)...")
+    ocr_engine = OCRService()
 
-@app.post("/process-video")
-async def process_video_pipeline(
-    target_language: str = Form(...), 
-    video_file: UploadFile = File(...)
-):
-    lang_map = {
-        "marathi": {"trans": "mar_Deva", "tts": "mar"},
-        "hindi": {"trans": "hin_Deva", "tts": "hin"}
-    }
-    
-    config = lang_map.get(target_language.lower())
-    if not config:
-        return {"error": "Unsupported language"}
+    print("[6/6] Loading STM & System Telemetry...")
+    stm_service = STMService()
+    system_service = SystemService()
 
-    # 3. ISOLATE VIDEO INGESTION
-    input_filename = f"temp_input_{video_file.filename}"
-    input_path = os.path.join(OUTPUT_DIR, input_filename)
-    
-    with open(input_path, "wb") as buffer:
-        shutil.copyfileobj(video_file.file, buffer)
+    # Register services with routers that need them
+    stm.init(stm_service)
+    system.init(system_service)
 
-    try:
-        output_video_filename, translated_script = video_engine.process_video(
-            input_video=input_path,
-            target_lang_code=config["trans"],
-            tts_lang_code=config["tts"]
-        )
+    # Register all services with the background job worker
+    worker.register_services(
+        asr=asr,
+        translator=translator,
+        tts=tts,
+        video_engine=video_engine,
+        ocr_engine=ocr_engine,
+        stm_engine=stm_service,
+    )
 
-        return {
-            "status": "success",
-            "translated_text": translated_script,
-            "video_url": f"http://127.0.0.1:8000/{output_video_filename}"
-        }
-    except Exception as e:
-        return {"error": str(e)}
-    finally:
-        if os.path.exists(input_path): os.remove(input_path)
+    print("\n" + "=" * 60)
+    print("  AI CORE READY — All models loaded into local memory")
+    print("=" * 60 + "\n")
 
-# 4. RESTRICT STATIC FILE SERVING TO THE OUTPUT DIRECTORY ONLY
-app.mount("/", StaticFiles(directory=OUTPUT_DIR), name="static")
+
+# ==========================================
+# STATIC FILE SERVING (must be last — catch-all mount)
+# ==========================================
+app.mount("/", StaticFiles(directory=str(OUTPUT_DIR)), name="static")
+
 
 if __name__ == "__main__":
     import uvicorn

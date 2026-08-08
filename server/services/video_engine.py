@@ -20,12 +20,18 @@ class VideoService:
         ms = int((seconds - math.floor(seconds)) * 1000)
         return f"{h:02d}:{m:02d}:{s:02d},{ms:03d}"
     
-    def process_video(self, input_video: str, target_lang_code: str, tts_lang_code: str):
+    def process_video(self, input_video: str, target_lang_code: str, tts_lang_code: str,
+                      progress_callback=None):
         """
         1. Extract Audio -> 2. Transcribe -> 3. Translate -> 4. Generate SRT -> 5. TTS -> 6. Remux
+        progress_callback(percent: int, stage: str) is called at each stage if provided.
         """
         start_time = time.time()
         print(f"--- STARTING VIDEO PIPELINE: {input_video} ---")
+
+        def _progress(percent, stage):
+            if progress_callback:
+                progress_callback(percent, stage)
         
         # 1. FORCE ALL PATHS INTO THE OUTPUTS FOLDER
         out_dir = "outputs"
@@ -43,15 +49,18 @@ class VideoService:
 
         try:
             print("[1/6] Extracting audio footprint...")
+            _progress(10, "Extracting Audio")
             subprocess.run([
                 "ffmpeg", "-i", input_video, "-vn", "-acodec", "pcm_s16le", 
                 "-ar", "16000", "-ac", "1", extracted_audio
             ], check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
             print("[2/6] Transcribing with Faster-Whisper...")
+            _progress(25, "Transcribing (Whisper)")
             segments = self.asr.transcribe_with_timestamps(extracted_audio)
 
             print("[3/6 & 4/6] Translating and building SRT subtitle file...")
+            _progress(45, "Translating & Building SRT")
             srt_content = ""
             full_translated_text = []
 
@@ -67,10 +76,12 @@ class VideoService:
                 f.write(srt_content)
 
             print("[5/6] Synthesizing native voiceover...")
+            _progress(65, "Synthesizing Voice")
             combined_translation = " ".join(full_translated_text)
             self.tts.generate_voice(combined_translation, lang_code=tts_lang_code, output_file=new_audio)
 
             print("[6/6] Remuxing final video (This will tax the CPU)...")
+            _progress(80, "Remuxing Video")
             safe_srt_path = srt_file.replace("\\", "/")
             
             subprocess.run([
@@ -87,6 +98,7 @@ class VideoService:
                 output_video
             ], check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
+            _progress(95, "Finalizing")
             print(f"--- VIDEO PIPELINE COMPLETE in {time.time() - start_time:.2f}s ---")
             
             # 2. RETURN ONLY THE FILENAME SO FASTAPI CAN BUILD THE URL CORRECTLY
