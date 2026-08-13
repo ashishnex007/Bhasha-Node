@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, BookOpen, Plus, Trash2 } from 'lucide-react';
+import { X, BookOpen, Plus, Trash2, CheckCircle, AlertCircle } from 'lucide-react';
 import { fetchSTMTerms, addSTMTerm, deleteSTMTerm } from '../services/api';
 import type { STMTerm } from '../services/api';
 
@@ -9,19 +9,34 @@ interface STMModalProps {
   onClose: () => void;
 }
 
+type Toast = { type: 'ok' | 'err'; msg: string } | null;
+
 export default function STMModal({ darkMode, isOpen, onClose }: STMModalProps) {
   const [terms, setTerms] = useState<STMTerm[]>([]);
   const [loading, setLoading] = useState(false);
   const [sourceTerm, setSourceTerm] = useState('');
   const [targetTerm, setTargetTerm] = useState('');
   const [termLang, setTermLang] = useState('marathi');
+  const [filterLang, setFilterLang] = useState('all');
   const [adding, setAdding] = useState(false);
+  const [toast, setToast] = useState<Toast>(null);
 
   useEffect(() => { if (isOpen) loadTerms(); }, [isOpen]);
 
+  useEffect(() => {
+    if (!toast) return;
+    const t = setTimeout(() => setToast(null), 3000);
+    return () => clearTimeout(t);
+  }, [toast]);
+
   const loadTerms = async () => {
     setLoading(true);
-    try { const d = await fetchSTMTerms(); setTerms(d.terms); } catch {}
+    try {
+      const d = await fetchSTMTerms();
+      setTerms(d.terms);
+    } catch {
+      setToast({ type: 'err', msg: 'Could not load words. Is the server running?' });
+    }
     setLoading(false);
   };
 
@@ -29,88 +44,194 @@ export default function STMModal({ darkMode, isOpen, onClose }: STMModalProps) {
     if (!sourceTerm.trim() || !targetTerm.trim()) return;
     setAdding(true);
     try {
-      await addSTMTerm(sourceTerm, targetTerm, termLang);
-      setSourceTerm(''); setTargetTerm('');
+      await addSTMTerm(sourceTerm.trim(), targetTerm.trim(), termLang);
+      setSourceTerm('');
+      setTargetTerm('');
+      setToast({ type: 'ok', msg: 'Word saved! It will now be used in translations.' });
       await loadTerms();
-    } catch {}
+    } catch {
+      setToast({ type: 'err', msg: 'Could not save word. Please try again.' });
+    }
     setAdding(false);
   };
 
   const handleDelete = async (id: number) => {
-    await deleteSTMTerm(id);
-    setTerms(prev => prev.filter(t => t.id !== id));
+    try {
+      await deleteSTMTerm(id);
+      setTerms(prev => prev.filter(t => t.id !== id));
+      setToast({ type: 'ok', msg: 'Word removed.' });
+    } catch {
+      setToast({ type: 'err', msg: 'Could not remove word.' });
+    }
   };
 
   if (!isOpen) return null;
 
-  const bg = darkMode ? 'bg-[#0c0c14]' : 'bg-white';
-  const border = darkMode ? 'border-white/[0.06]' : 'border-black/[0.06]';
+  const bg = darkMode ? 'bg-[#0d0d18]' : 'bg-white';
+  const border = darkMode ? 'border-white/[0.07]' : 'border-black/[0.07]';
   const muted = darkMode ? 'text-zinc-500' : 'text-zinc-400';
-  const input = `px-3 py-2 rounded-lg text-xs border outline-none transition-all focus:ring-1 focus:ring-indigo-500/30 ${border} ${
-    darkMode ? 'bg-[#111118] text-zinc-200 placeholder:text-zinc-600' : 'bg-white text-zinc-800 placeholder:text-zinc-400'
+  const inputCls = `w-full px-4 py-3 rounded-xl text-sm border outline-none transition-all focus:ring-2 focus:ring-indigo-500/30 ${border} ${
+    darkMode ? 'bg-[#16161f] text-zinc-200 placeholder:text-zinc-600' : 'bg-zinc-50 text-zinc-800 placeholder:text-zinc-400'
   }`;
+  const rowBg = darkMode ? 'hover:bg-white/[0.03]' : 'hover:bg-black/[0.02]';
+
+  const displayed = filterLang === 'all' ? terms : terms.filter(t => t.target_language === filterLang);
 
   return (
     <>
-      <div className="fixed inset-0 bg-black/30 backdrop-blur-sm z-40" onClick={onClose} />
-      <div className={`fixed inset-x-4 top-[12%] max-w-md mx-auto z-50 rounded-xl shadow-2xl flex flex-col max-h-[76vh] ${bg} border ${border}`}>
-        {/* Header */}
-        <div className={`p-4 flex items-center justify-between border-b ${border}`}>
-          <div className="flex items-center gap-2.5">
-            <BookOpen size={14} className={muted} />
+      <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-40" onClick={onClose} />
+      <div className={`fixed inset-x-4 top-[6%] max-w-lg mx-auto z-50 rounded-2xl shadow-2xl flex flex-col max-h-[88vh] ${bg} border ${border}`}>
+
+        {/* ── Header ── */}
+        <div className={`px-5 py-4 flex items-center justify-between border-b ${border}`}>
+          <div className="flex items-center gap-3">
+            <div className="h-10 w-10 rounded-xl bg-indigo-600/15 flex items-center justify-center">
+              <BookOpen size={22} className="text-indigo-500" />
+            </div>
             <div>
-              <h2 className="text-sm font-semibold">Domain Dictionary</h2>
-              <p className={`text-[10px] font-mono ${muted}`}>{terms.length} terms · Enforced post-translation</p>
+              <h2 className="text-base font-bold">Word Dictionary</h2>
+              <p className={`text-xs mt-0.5 ${muted}`}>{terms.length} saved words · used in every translation</p>
             </div>
           </div>
-          <button onClick={onClose} className={`p-1.5 rounded-md transition-colors ${
-            darkMode ? 'hover:bg-white/[0.04]' : 'hover:bg-black/[0.03]'
-          }`}><X size={14} className={muted} /></button>
-        </div>
-
-        {/* Add Form */}
-        <div className={`p-3 border-b ${border} space-y-2`}>
-          <div className="grid grid-cols-2 gap-2">
-            <input value={sourceTerm} onChange={(e) => setSourceTerm(e.target.value)}
-              placeholder="English term" className={input} />
-            <input value={targetTerm} onChange={(e) => setTargetTerm(e.target.value)}
-              placeholder="Correct translation" className={input} />
-          </div>
-          <div className="flex gap-2">
-            <select value={termLang} onChange={(e) => setTermLang(e.target.value)}
-              className={`flex-1 ${input}`}>
-              <option value="marathi">Marathi</option>
-              <option value="hindi">Hindi</option>
-            </select>
-            <button onClick={handleAdd}
-              disabled={adding || !sourceTerm.trim() || !targetTerm.trim()}
-              className="px-3 py-2 rounded-lg text-xs font-medium bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1 transition-colors">
-              <Plus size={11} /> Add
-            </button>
-          </div>
-        </div>
-
-        {/* Terms */}
-        <div className="flex-1 overflow-y-auto p-2 custom-scrollbar">
-          {loading ? (
-            <p className={`text-xs text-center py-8 ${muted}`}>Loading...</p>
-          ) : terms.length === 0 ? (
-            <p className={`text-xs text-center py-8 ${muted}`}>No terms yet. Add agricultural corrections above.</p>
-          ) : terms.map(term => (
-            <div key={term.id} className={`p-2.5 rounded-lg flex items-center justify-between group ${
-              darkMode ? 'hover:bg-white/[0.02]' : 'hover:bg-black/[0.01]'
+          <button onClick={onClose}
+            className={`h-8 w-8 rounded-lg flex items-center justify-center transition-colors ${
+              darkMode ? 'hover:bg-white/[0.06] text-zinc-400' : 'hover:bg-black/[0.04] text-zinc-500'
             }`}>
-              <div className="flex items-center gap-2 text-xs min-w-0">
-                <span className={darkMode ? 'text-zinc-300' : 'text-zinc-700'}>{term.source_term}</span>
-                <span className={muted}>→</span>
-                <span className="font-semibold text-indigo-500">{term.target_term}</span>
-                <span className={`text-[9px] font-mono px-1.5 py-0.5 rounded ${
-                  darkMode ? 'bg-white/[0.03] text-zinc-500' : 'bg-black/[0.02] text-zinc-400'
-                }`}>{term.target_language}</span>
+            <X size={18} />
+          </button>
+        </div>
+
+        {/* ── Toast ── */}
+        {toast && (
+          <div className={`mx-4 mt-3 px-4 py-2.5 rounded-xl flex items-center gap-2.5 text-sm font-medium ${
+            toast.type === 'ok'
+              ? 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20'
+              : 'bg-red-500/10 text-red-500 border border-red-500/20'
+          }`}>
+            {toast.type === 'ok'
+              ? <CheckCircle size={16} />
+              : <AlertCircle size={16} />}
+            {toast.msg}
+          </div>
+        )}
+
+        {/* ── Add Form ── */}
+        <div className={`px-4 py-4 border-b ${border} space-y-3`}>
+          <p className={`text-xs font-semibold uppercase tracking-widest ${muted}`}>Add a new word</p>
+          <div className="grid grid-cols-2 gap-2.5">
+            <div>
+              <label className={`text-[11px] font-medium mb-1 block ${muted}`}>English word</label>
+              <input
+                value={sourceTerm}
+                onChange={(e) => setSourceTerm(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleAdd()}
+                placeholder="e.g. pesticide"
+                className={inputCls}
+              />
+            </div>
+            <div>
+              <label className={`text-[11px] font-medium mb-1 block ${muted}`}>Correct translation</label>
+              <input
+                value={targetTerm}
+                onChange={(e) => setTargetTerm(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleAdd()}
+                placeholder="e.g. कीटकनाशक"
+                className={inputCls}
+              />
+            </div>
+          </div>
+          <div className="flex gap-2.5">
+            <div className="flex-1">
+              <label className={`text-[11px] font-medium mb-1 block ${muted}`}>Language</label>
+              <select
+                value={termLang}
+                onChange={(e) => setTermLang(e.target.value)}
+                className={inputCls}
+              >
+                <option value="marathi">Marathi (मराठी)</option>
+                <option value="hindi">Hindi (हिन्दी)</option>
+              </select>
+            </div>
+            <div className="flex items-end">
+              <button
+                onClick={handleAdd}
+                disabled={adding || !sourceTerm.trim() || !targetTerm.trim()}
+                className="h-[46px] px-5 rounded-xl text-sm font-semibold bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-2 transition-colors shadow-sm"
+              >
+                {adding ? (
+                  <span className="animate-spin text-base">⟳</span>
+                ) : (
+                  <Plus size={18} />
+                )}
+                Save
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* ── Filter Tabs ── */}
+        <div className={`px-4 pt-3 pb-1 flex gap-2`}>
+          {(['all', 'marathi', 'hindi'] as const).map(lang => (
+            <button
+              key={lang}
+              onClick={() => setFilterLang(lang)}
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all capitalize ${
+                filterLang === lang
+                  ? 'bg-indigo-600 text-white'
+                  : `${darkMode ? 'text-zinc-400 hover:bg-white/[0.05]' : 'text-zinc-500 hover:bg-black/[0.04]'}`
+              }`}
+            >
+              {lang === 'all' ? `All (${terms.length})` : lang === 'marathi' ? `Marathi (${terms.filter(t=>t.target_language==='marathi').length})` : `Hindi (${terms.filter(t=>t.target_language==='hindi').length})`}
+            </button>
+          ))}
+        </div>
+
+        {/* ── Word List ── */}
+        <div className="flex-1 overflow-y-auto px-3 pb-3 custom-scrollbar">
+          {loading ? (
+            <div className="flex items-center justify-center py-14">
+              <div className={`text-sm ${muted} animate-pulse`}>Loading words...</div>
+            </div>
+          ) : displayed.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-14 gap-3">
+              <BookOpen size={36} className={muted} />
+              <p className={`text-sm text-center ${muted}`}>
+                {filterLang === 'all' ? 'No words saved yet.\nAdd your first word above!' : `No ${filterLang} words yet.`}
+              </p>
+            </div>
+          ) : displayed.map(term => (
+            <div
+              key={term.id}
+              className={`px-3 py-3 rounded-xl flex items-center justify-between group transition-colors mt-1.5 ${rowBg}`}
+            >
+              <div className="flex items-center gap-3 min-w-0">
+                {/* Language badge */}
+                <span className={`shrink-0 text-[10px] font-bold uppercase px-2 py-1 rounded-md ${
+                  term.target_language === 'marathi'
+                    ? 'bg-orange-500/10 text-orange-500'
+                    : 'bg-blue-500/10 text-blue-500'
+                }`}>
+                  {term.target_language === 'marathi' ? 'MAR' : 'HIN'}
+                </span>
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className={`text-sm font-medium ${darkMode ? 'text-zinc-200' : 'text-zinc-700'}`}>
+                      {term.source_term}
+                    </span>
+                    <span className={muted}>→</span>
+                    <span className="text-sm font-semibold text-indigo-400">
+                      {term.target_term}
+                    </span>
+                  </div>
+                  <p className={`text-[10px] mt-0.5 ${muted}`}>{term.domain}</p>
+                </div>
               </div>
-              <button onClick={() => handleDelete(term.id)}
-                className="p-1 rounded opacity-0 group-hover:opacity-100 text-zinc-400 hover:text-red-500 transition-all">
-                <Trash2 size={11} />
+              <button
+                onClick={() => handleDelete(term.id)}
+                className="shrink-0 h-8 w-8 rounded-lg flex items-center justify-center opacity-0 group-hover:opacity-100 text-zinc-400 hover:text-red-500 hover:bg-red-500/10 transition-all"
+                title="Remove word"
+              >
+                <Trash2 size={15} />
               </button>
             </div>
           ))}

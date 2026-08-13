@@ -31,9 +31,6 @@ export default function App() {
     ram_percent: 0, disk_used_gb: 0, disk_total_gb: 0, disk_percent: 0,
   });
 
-  const [logs, setLogs] = useState<string[]>(['System ready.']);
-  const addLog = (msg: string) => setLogs(prev => [`[${new Date().toLocaleTimeString()}] ${msg}`, ...prev.slice(0, 49)]);
-
   // ---- Dark mode ----
   useEffect(() => {
     document.documentElement.classList.toggle('dark', darkMode);
@@ -57,21 +54,16 @@ export default function App() {
     try {
       let response;
       if (payload.type === 'text') {
-        addLog(`Text → ${payload.targetLanguage}`);
         response = await submitTextJob(payload.rawText, payload.targetLanguage);
       } else if (payload.type === 'audio' && payload.file) {
-        addLog(`Audio: ${payload.file.name}`);
         response = await submitAudioJob(payload.file, payload.targetLanguage);
       } else if (payload.type === 'video' && payload.file) {
-        addLog(`Video: ${payload.file.name}`);
         response = await submitVideoJob(payload.file, payload.targetLanguage);
       } else if (payload.type === 'ocr' && payload.file) {
-        addLog(`OCR: ${payload.file.name}`);
         response = await submitOCRJob(payload.file, payload.targetLanguage);
       } else return;
 
       setCurrentJobType(payload.type);
-      addLog(`Queued #${response.job_id}`);
       setCurrentJob({
         job_id: response.job_id, type: payload.type,
         target_language: payload.targetLanguage,
@@ -81,7 +73,7 @@ export default function App() {
       setView('processing');
       startPolling(response.job_id);
     } catch (e: any) {
-      addLog(`Error: ${e.message}`);
+      alert(`Could not start translation: ${e.message}`);
     }
   };
 
@@ -96,10 +88,8 @@ export default function App() {
           clearInterval(pollRef.current!); pollRef.current = null;
           setCurrentResult(job.result || null);
           setView('result');
-          addLog(`#${jobId} complete`);
         } else if (job.status === 'error') {
           clearInterval(pollRef.current!); pollRef.current = null;
-          addLog(`#${jobId} failed: ${job.error}`);
         }
       } catch {}
     }, 1500);
@@ -121,50 +111,40 @@ export default function App() {
     });
     setCurrentJobType(rec.input_type);
     setView('result');
-    addLog(`Loaded history #${rec.id}`);
   };
 
-  const muted = darkMode ? 'text-zinc-600' : 'text-zinc-400';
+  // ---- View title labels ----
+  const viewTitle = view === 'input' ? 'Translate Now'
+    : view === 'processing' ? 'Working…'
+    : 'Result';
+  const viewSub = view === 'input' ? 'Upload a file, record audio, or type text below.'
+    : view === 'processing' ? 'Using local AI — no internet needed.'
+    : 'Translation complete — 100% offline.';
 
   return (
     <div className={`flex h-screen transition-colors duration-200 ${
       darkMode ? 'bg-[#09090f] text-zinc-100' : 'bg-zinc-50 text-zinc-900'
     }`}>
+
       {/* ==========================================
-          SIDEBAR
+          SIDEBAR — system stats only
           ========================================== */}
-      <aside className={`w-56 flex flex-col border-r shrink-0 transition-colors ${
+      <aside className={`w-52 flex flex-col border-r shrink-0 transition-colors ${
         darkMode ? 'bg-[#0c0c14] border-white/[0.06]' : 'bg-white border-black/[0.06]'
       }`}>
         {/* Logo */}
-        <div className="p-4 pb-3">
-          <div className="flex items-center gap-2">
-            <div className="h-6 w-6 bg-indigo-600 rounded-md flex items-center justify-center text-white text-[10px] font-extrabold">B</div>
-            <span className="text-xs font-semibold tracking-tight">Bhasha Node</span>
+        <div className="p-5 pb-4">
+          <div className="flex items-center gap-3">
+            <div className="h-8 w-8 bg-indigo-600 rounded-xl flex items-center justify-center text-white text-xs font-extrabold shadow-md shadow-indigo-600/20">B</div>
+            <span className="text-sm font-bold tracking-tight">Bhasha Node</span>
           </div>
         </div>
 
-        <div className={`mx-3 h-px ${darkMode ? 'bg-white/[0.04]' : 'bg-black/[0.04]'}`} />
+        <div className={`mx-4 h-px ${darkMode ? 'bg-white/[0.04]' : 'bg-black/[0.04]'}`} />
 
         {/* Telemetry */}
         <div className="p-4">
           <TelemetryCard darkMode={darkMode} stats={stats} />
-        </div>
-
-        <div className={`mx-3 h-px ${darkMode ? 'bg-white/[0.04]' : 'bg-black/[0.04]'}`} />
-
-        {/* Event log */}
-        <div className="flex-1 flex flex-col overflow-hidden p-4">
-          <h3 className={`text-[10px] font-semibold uppercase tracking-widest mb-2.5 ${muted}`}>Log</h3>
-          <div className="flex-1 overflow-y-auto space-y-1 pr-1 custom-scrollbar">
-            {logs.map((log, i) => (
-              <p key={i} className={`text-[9px] font-mono leading-relaxed ${
-                i === 0
-                  ? log.includes('Error') ? 'text-red-400' : darkMode ? 'text-zinc-400' : 'text-zinc-600'
-                  : darkMode ? 'text-zinc-600' : 'text-zinc-400'
-              }`}>{log}</p>
-            ))}
-          </div>
         </div>
       </aside>
 
@@ -181,20 +161,10 @@ export default function App() {
 
         <div className="flex-1 overflow-y-auto">
           <div className="max-w-2xl mx-auto px-6 py-8">
-            {/* Title */}
-            <div className="mb-6">
-              <h2 className="text-lg font-semibold tracking-tight">
-                {view === 'input' ? 'New Inference' :
-                 view === 'processing' ? 'Processing' :
-                 'Result'}
-              </h2>
-              <p className={`text-xs mt-0.5 ${muted}`}>
-                {view === 'input'
-                  ? 'Upload a document, record audio, or paste text.'
-                  : view === 'processing'
-                    ? 'Running on local AI models.'
-                    : 'Processed 100% offline.'}
-              </p>
+            {/* Page title */}
+            <div className="mb-7">
+              <h2 className="text-xl font-bold tracking-tight">{viewTitle}</h2>
+              <p className={`text-sm mt-1 ${darkMode ? 'text-zinc-500' : 'text-zinc-400'}`}>{viewSub}</p>
             </div>
 
             {view === 'input' && (

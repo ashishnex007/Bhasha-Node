@@ -32,7 +32,6 @@ export default function IngestionForm({ darkMode, onSubmit, isDisabled }: Ingest
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Clean up timer on unmount
   useEffect(() => {
     return () => { if (timerRef.current) clearInterval(timerRef.current); };
   }, []);
@@ -67,7 +66,6 @@ export default function IngestionForm({ darkMode, onSubmit, isDisabled }: Ingest
     if (f) handleFile(f);
   };
 
-  // ---- Recording ----
   const formatTime = (s: number) => {
     const m = Math.floor(s / 60);
     const sec = s % 60;
@@ -95,15 +93,14 @@ export default function IngestionForm({ darkMode, onSubmit, isDisabled }: Ingest
         stream.getTracks().forEach(track => track.stop());
       };
 
-      mediaRecorder.start(250); // collect data every 250ms for reliability
+      mediaRecorder.start(250);
       setIsRecording(true);
 
-      // Start visual timer
       timerRef.current = setInterval(() => {
         setRecordSeconds(prev => prev + 1);
       }, 1000);
     } catch {
-      alert("Microphone access denied. Check browser permissions.");
+      alert('Microphone access denied. Please check browser permissions.');
     }
   };
 
@@ -132,138 +129,149 @@ export default function IngestionForm({ darkMode, onSubmit, isDisabled }: Ingest
   const border = darkMode ? 'border-white/[0.06]' : 'border-black/[0.06]';
   const muted = darkMode ? 'text-zinc-500' : 'text-zinc-400';
 
+  // File type display config
+  const fileTypeIcon = fileCategory === 'video' ? <Video size={28} className="text-rose-500" />
+    : fileCategory === 'audio' ? <Mic size={28} className="text-amber-500" />
+    : fileCategory === 'ocr' ? <ImageIcon size={28} className="text-emerald-500" />
+    : <FileText size={28} className="text-indigo-500" />;
+
+  const fileTypeLabel = fileCategory === 'video' ? 'Video'
+    : fileCategory === 'audio' ? 'Audio / Recording'
+    : fileCategory === 'ocr' ? 'Image / PDF'
+    : 'Text File';
+
   return (
     <div className="space-y-5 stagger">
 
       {/* ==========================================
-          UPLOAD ZONE (shown when no file selected)
+          UPLOAD ZONE
           ========================================== */}
       {!file && (
         <div className="animate-fadeUp">
+          {/* Drop zone */}
           <div
             onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
             onDragLeave={() => setIsDragging(false)}
             onDrop={handleDrop}
             onClick={() => !isRecording && fileInputRef.current?.click()}
-            className={`relative border rounded-xl p-8 flex flex-col items-center text-center transition-all cursor-pointer ${border} ${
+            className={`relative border-2 border-dashed rounded-2xl p-10 flex flex-col items-center text-center transition-all cursor-pointer ${
               isDragging
-                ? 'border-indigo-500/50 bg-indigo-500/[0.03]'
-                : `${bg} hover:border-indigo-500/30`
+                ? 'border-indigo-500 bg-indigo-500/[0.06]'
+                : `${darkMode ? 'border-white/[0.08] hover:border-indigo-500/40 bg-[#111118]' : 'border-black/[0.08] hover:border-indigo-400/50 bg-white'}`
             }`}
           >
             <input ref={fileInputRef} type="file" onChange={handleFileInput} className="hidden"
               accept=".txt,.pdf,.png,.jpg,.jpeg,.tiff,.bmp,.webp,.wav,.mp3,.aac,.m4a,.flac,.ogg,.wma,.webm,.mp4,.mov,.avi,.wmv,.mkv,.flv" />
 
-            <UploadCloud size={24} className={`mb-3 ${muted}`} />
-            <p className="text-sm font-medium mb-1">Drop a file here or click to browse</p>
-            <p className={`text-xs ${muted}`}>Documents, scanned PDFs, audio, or video</p>
+            <UploadCloud size={44} className={`mb-4 ${isDragging ? 'text-indigo-500' : muted}`} />
+            <p className="text-base font-bold mb-1.5">Drop a file here</p>
+            <p className={`text-sm ${muted}`}>Or tap to pick from your device</p>
 
-            <div className="flex items-center gap-2 mt-4">
+            <div className="flex items-center gap-3 mt-5 flex-wrap justify-center">
               {[
-                { icon: <FileText size={12} />, label: '.txt' },
-                { icon: <ImageIcon size={12} />, label: '.pdf' },
-                { icon: <Mic size={12} />, label: '.wav' },
-                { icon: <Video size={12} />, label: '.mp4' },
+                { icon: <FileText size={16} />, label: 'Text', color: 'text-indigo-500 bg-indigo-500/10' },
+                { icon: <ImageIcon size={16} />, label: 'PDF / Image', color: 'text-emerald-500 bg-emerald-500/10' },
+                { icon: <Mic size={16} />, label: 'Audio', color: 'text-amber-500 bg-amber-500/10' },
+                { icon: <Video size={16} />, label: 'Video', color: 'text-rose-500 bg-rose-500/10' },
               ].map((t, i) => (
-                <span key={i} className={`text-[10px] font-medium px-2 py-1 rounded-md flex items-center gap-1 ${
-                  darkMode ? 'bg-white/[0.03] text-zinc-500' : 'bg-black/[0.02] text-zinc-400'
-                }`}>{t.icon} {t.label}</span>
+                <span key={i} className={`text-xs font-semibold px-3 py-1.5 rounded-full flex items-center gap-1.5 ${t.color}`}>
+                  {t.icon} {t.label}
+                </span>
               ))}
             </div>
           </div>
 
-          {/* ---- Recording Button ---- */}
-          <div className="flex justify-center mt-4">
+          {/* Recording Button */}
+          <div className="flex justify-center mt-5">
             {!isRecording ? (
               <button
                 onClick={(e) => { e.stopPropagation(); startRecording(); }}
-                className={`px-4 py-2 rounded-lg text-xs font-medium flex items-center gap-2 transition-all border ${
+                className={`px-6 py-3 rounded-2xl text-sm font-bold flex items-center gap-3 transition-all border-2 ${
                   darkMode
-                    ? 'border-white/[0.06] text-zinc-400 hover:text-red-400 hover:border-red-500/30 hover:bg-red-500/[0.04]'
-                    : 'border-black/[0.06] text-zinc-500 hover:text-red-500 hover:border-red-500/20 hover:bg-red-50'
+                    ? 'border-white/[0.08] text-zinc-400 hover:text-red-400 hover:border-red-500/40 hover:bg-red-500/[0.05]'
+                    : 'border-black/[0.08] text-zinc-500 hover:text-red-500 hover:border-red-400/40 hover:bg-red-50'
                 }`}
               >
-                <Mic size={13} /> Record Audio
+                <Mic size={20} /> Record your voice
               </button>
             ) : (
-              <div className="flex flex-col items-center gap-3">
-                {/* Live Timer Display */}
-                <div className="flex items-center gap-3">
+              <div className="flex flex-col items-center gap-4">
+                <div className="flex items-center gap-4">
                   <div className="relative flex items-center justify-center">
-                    <span className="absolute h-3 w-3 rounded-full bg-red-500 animate-pulse-ring" />
-                    <span className="relative h-3 w-3 rounded-full bg-red-500" />
+                    <span className="absolute h-4 w-4 rounded-full bg-red-500 animate-pulse-ring" />
+                    <span className="relative h-4 w-4 rounded-full bg-red-500" />
                   </div>
-                  <span className={`text-2xl font-mono font-bold tabular-nums ${
+                  <span className={`text-3xl font-mono font-bold tabular-nums ${
                     darkMode ? 'text-zinc-200' : 'text-zinc-800'
                   }`}>{formatTime(recordSeconds)}</span>
-                  <span className={`text-[10px] font-medium uppercase tracking-wider ${
-                    darkMode ? 'text-red-400/70' : 'text-red-500/70'
-                  }`}>Recording</span>
+                  <span className={`text-xs font-bold uppercase tracking-wider ${
+                    darkMode ? 'text-red-400/80' : 'text-red-500/80'
+                  }`}>Recording…</span>
                 </div>
                 <button
                   onClick={(e) => { e.stopPropagation(); stopRecording(); }}
-                  className="px-4 py-2 rounded-lg text-xs font-medium bg-red-500 text-white flex items-center gap-2 hover:bg-red-600 transition-colors shadow-sm"
+                  className="px-6 py-3 rounded-2xl text-sm font-bold bg-red-500 text-white flex items-center gap-2.5 hover:bg-red-600 transition-colors shadow-md"
                 >
-                  <Square size={11} fill="currentColor" /> Stop
+                  <Square size={14} fill="currentColor" /> Stop Recording
                 </button>
               </div>
             )}
           </div>
 
-          {/* ---- Separator ---- */}
-          <div className="flex items-center gap-3 my-5">
-            <div className={`h-px flex-1 ${darkMode ? 'bg-white/[0.04]' : 'bg-black/[0.04]'}`} />
-            <span className={`text-[10px] font-medium uppercase tracking-widest ${muted}`}>Or enter text</span>
-            <div className={`h-px flex-1 ${darkMode ? 'bg-white/[0.04]' : 'bg-black/[0.04]'}`} />
+          {/* ── Separator ── */}
+          <div className="flex items-center gap-3 my-6">
+            <div className={`h-px flex-1 ${darkMode ? 'bg-white/[0.05]' : 'bg-black/[0.05]'}`} />
+            <span className={`text-xs font-bold uppercase tracking-widest ${muted}`}>Or type / paste text</span>
+            <div className={`h-px flex-1 ${darkMode ? 'bg-white/[0.05]' : 'bg-black/[0.05]'}`} />
           </div>
 
-          {/* ---- Raw Text Area ---- */}
+          {/* ── Text Area ── */}
           <textarea
             value={rawText}
             onChange={(e) => setRawText(e.target.value)}
-            placeholder="Paste or type English text here..."
-            rows={3}
-            className={`w-full p-4 rounded-xl border text-sm outline-none resize-none transition-all focus:ring-1 focus:ring-indigo-500/30 ${border} ${
+            placeholder="Type or paste English text here..."
+            rows={4}
+            className={`w-full p-4 rounded-2xl border-2 text-sm outline-none resize-none transition-all focus:ring-2 focus:ring-indigo-500/20 ${
               darkMode
-                ? 'bg-[#111118] text-zinc-200 placeholder:text-zinc-600'
-                : 'bg-white text-zinc-800 placeholder:text-zinc-400'
+                ? 'border-white/[0.07] bg-[#111118] text-zinc-200 placeholder:text-zinc-600 focus:border-indigo-500/40'
+                : 'border-black/[0.07] bg-white text-zinc-800 placeholder:text-zinc-400 focus:border-indigo-400/50'
             }`}
           />
           {rawText.trim() && (
-            <div className="flex justify-between items-center mt-1.5">
-              <span className={`text-[10px] font-mono ${muted}`}>{rawText.length} chars</span>
-            </div>
+            <p className={`text-xs font-mono mt-1.5 ${muted}`}>{rawText.length} characters</p>
           )}
         </div>
       )}
 
       {/* ==========================================
-          FILE PREVIEW (shown when file is selected)
+          FILE PREVIEW
           ========================================== */}
       {file && (
-        <div className={`p-4 rounded-xl border flex items-center gap-3 animate-fadeUp ${border} ${bg}`}>
-          <div className={`h-10 w-10 rounded-lg flex items-center justify-center shrink-0 ${
-            darkMode ? 'bg-white/[0.04]' : 'bg-black/[0.02]'
+        <div className={`p-5 rounded-2xl border-2 flex items-center gap-4 animate-fadeUp ${
+          darkMode ? 'border-white/[0.07] bg-[#111118]' : 'border-black/[0.07] bg-white'
+        }`}>
+          <div className={`h-14 w-14 rounded-2xl flex items-center justify-center shrink-0 ${
+            darkMode ? 'bg-white/[0.05]' : 'bg-black/[0.03]'
           }`}>
-            {fileCategory === 'video' ? <Video size={16} className="text-rose-500" /> :
-             fileCategory === 'audio' ? <Mic size={16} className="text-amber-500" /> :
-             fileCategory === 'ocr' ? <ImageIcon size={16} className="text-emerald-500" /> :
-             <FileText size={16} className="text-indigo-500" />}
+            {fileTypeIcon}
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium truncate">{file.name}</p>
-            <p className={`text-[10px] font-mono ${muted}`}>
-              {fileCategory?.toUpperCase()} · {(file.size / 1024).toFixed(0)} KB
+            <p className="text-sm font-bold truncate">{file.name}</p>
+            <p className={`text-xs mt-0.5 ${muted}`}>
+              {fileTypeLabel} · {(file.size / 1024).toFixed(0)} KB
               {fileCategory === 'audio' && recordSeconds > 0 && ` · ${formatTime(recordSeconds)}`}
             </p>
             {fileCategory === 'audio' && (
-              <audio controls src={URL.createObjectURL(file)} className="w-full h-8 mt-2" />
+              <audio controls src={URL.createObjectURL(file)} className="w-full h-9 mt-2" />
             )}
           </div>
-          <button onClick={clearPayload} className={`p-1.5 rounded-md transition-colors ${
-            darkMode ? 'text-zinc-500 hover:text-zinc-300 hover:bg-white/[0.04]' : 'text-zinc-400 hover:text-zinc-700 hover:bg-black/[0.03]'
-          }`}>
-            <X size={14} />
+          <button
+            onClick={clearPayload}
+            className={`p-2 rounded-xl transition-colors ${
+              darkMode ? 'text-zinc-500 hover:text-zinc-200 hover:bg-white/[0.06]' : 'text-zinc-400 hover:text-zinc-700 hover:bg-black/[0.04]'
+            }`}
+          >
+            <X size={18} />
           </button>
         </div>
       )}
@@ -273,31 +281,32 @@ export default function IngestionForm({ darkMode, onSubmit, isDisabled }: Ingest
           ========================================== */}
       {hasPayload && (
         <div className="space-y-4 animate-fadeUp">
+
           {/* Language Selector */}
           <div>
-            <label className={`block text-[10px] font-semibold uppercase tracking-widest mb-2 ${muted}`}>
-              Target Language
+            <label className={`block text-xs font-bold uppercase tracking-widest mb-3 ${muted}`}>
+              Translate to which language?
             </label>
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-2 gap-3">
               {([
-                { key: 'marathi', script: 'मराठी' },
-                { key: 'hindi', script: 'हिन्दी' },
-              ] as const).map(({ key, script }) => (
+                { key: 'marathi', script: 'मराठी', native: 'Marathi' },
+                { key: 'hindi', script: 'हिन्दी', native: 'Hindi' },
+              ] as const).map(({ key, script, native }) => (
                 <button
                   key={key}
                   onClick={() => setTargetLang(key)}
-                  className={`p-3 rounded-lg border text-left transition-all ${
+                  className={`p-4 rounded-2xl border-2 text-left transition-all ${
                     targetLang === key
-                      ? 'border-indigo-500 bg-indigo-600 text-white'
-                      : `${border} ${darkMode ? 'text-zinc-300 hover:bg-white/[0.02]' : 'text-zinc-700 hover:bg-black/[0.01]'}`
+                      ? 'border-indigo-500 bg-indigo-600 text-white shadow-lg shadow-indigo-600/20'
+                      : `${darkMode ? 'border-white/[0.07] text-zinc-300 hover:bg-white/[0.03]' : 'border-black/[0.07] text-zinc-700 hover:bg-black/[0.02]'}`
                   }`}
                 >
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-semibold capitalize">{key}</span>
-                    {targetLang === key && <CheckCircle size={13} className="opacity-70" />}
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-base font-bold">{native}</span>
+                    {targetLang === key && <CheckCircle size={18} className="opacity-80" />}
                   </div>
-                  <span className={`text-[10px] ${targetLang === key ? 'text-indigo-200' : muted}`}>
-                    {script} · Devanagari
+                  <span className={`text-lg font-semibold ${targetLang === key ? 'text-indigo-200' : muted}`}>
+                    {script}
                   </span>
                 </button>
               ))}
@@ -308,14 +317,15 @@ export default function IngestionForm({ darkMode, onSubmit, isDisabled }: Ingest
           <button
             onClick={handleSubmit}
             disabled={isDisabled}
-            className={`w-full py-3 rounded-xl text-sm font-semibold flex items-center justify-center gap-2 transition-all ${
+            id="btn-submit"
+            className={`w-full py-4 rounded-2xl text-base font-bold flex items-center justify-center gap-3 transition-all ${
               isDisabled
                 ? `${darkMode ? 'bg-white/[0.04] text-zinc-600' : 'bg-black/[0.03] text-zinc-400'} cursor-not-allowed`
-                : 'bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm active:scale-[0.99]'
+                : 'bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg shadow-indigo-600/25 active:scale-[0.99]'
             }`}
           >
-            <Send size={14} />
-            Process
+            <Send size={18} />
+            Start Translation
           </button>
         </div>
       )}

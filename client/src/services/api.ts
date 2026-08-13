@@ -149,7 +149,7 @@ export async function fetchSTMTerms(targetLanguage = ""): Promise<{ terms: STMTe
 export async function addSTMTerm(
   sourceTerm: string, targetTerm: string, targetLanguage: string, domain = "agriculture"
 ): Promise<void> {
-  await fetch(`${API_BASE}/api/stm/terms`, {
+  const res = await fetch(`${API_BASE}/api/stm/terms`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
@@ -159,6 +159,7 @@ export async function addSTMTerm(
       domain,
     }),
   });
+  if (!res.ok) throw new Error("Failed to save word to dictionary");
 }
 
 export async function deleteSTMTerm(id: number): Promise<void> {

@@ -68,15 +68,15 @@ def startup_event():
     print("[3/6] Loading ASR Service (Faster-Whisper INT8 Small)...")
     asr = ASRService()
 
-    print("[4/6] Loading Video Service (FFmpeg pipeline)...")
-    video_engine = VideoService(asr=asr, translator=translator, tts=tts)
-
-    print("[5/6] Loading OCR Service (Tesseract)...")
-    ocr_engine = OCRService()
-
-    print("[6/6] Loading STM & System Telemetry...")
+    print("[4/6] Loading STM (Word Dictionary) & System Telemetry...")
     stm_service = STMService()
     system_service = SystemService()
+
+    print("[5/6] Loading Video Service (FFmpeg pipeline)...")
+    video_engine = VideoService(asr=asr, translator=translator, tts=tts, stm=stm_service)
+
+    print("[6/6] Loading OCR Service (Tesseract)...")
+    ocr_engine = OCRService()
 
     # Register services with routers that need them
     stm.init(stm_service)

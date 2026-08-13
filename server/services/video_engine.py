@@ -7,10 +7,11 @@ from services.translation_engine import TranslationService
 from services.tts_engine import TTSService
 
 class VideoService:
-    def __init__(self, asr: ASRService, translator: TranslationService, tts: TTSService):
+    def __init__(self, asr: ASRService, translator: TranslationService, tts: TTSService, stm=None):
         self.asr = asr
         self.translator = translator
         self.tts = tts
+        self.stm = stm  # optional STM service for word corrections
 
     def format_srt_time(self, seconds: float) -> str:
         """Converts float seconds to SRT time format HH:MM:SS,mmm"""
@@ -64,8 +65,19 @@ class VideoService:
             srt_content = ""
             full_translated_text = []
 
+            # Map from IndicTrans2 code (mar_Deva/hin_Deva) → DB language key (marathi/hindi)
+            _trans_to_db = {"mar_Deva": "marathi", "hin_Deva": "hindi"}
+            stm_db_key = _trans_to_db.get(target_lang_code, target_lang_code)
+
             for index, segment in enumerate(segments, start=1):
-                translated_chunk = self.translator.translate(segment["text"], target_lang=target_lang_code)
+                seg_text = segment["text"]
+                translated_chunk = self.translator.translate(seg_text, target_lang=target_lang_code)
+                # Apply word dictionary corrections (oracle approach)
+                if self.stm:
+                    translator_fn = lambda w: self.translator.translate(w, target_lang=target_lang_code)
+                    translated_chunk = self.stm.apply_corrections(
+                        seg_text, translated_chunk, stm_db_key, translator_fn
+                    )
                 full_translated_text.append(translated_chunk)
                 
                 start_str = self.format_srt_time(segment["start"])

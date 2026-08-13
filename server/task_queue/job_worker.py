@@ -93,8 +93,13 @@ class JobWorker:
     def _process_text(self, job_id: str, text: str, target_lang: str, config: dict):
         db.update_job_progress(job_id, 20, "Translating")
 
+        # Translate the full text normally
         translated = self._services["translator"].translate(text, target_lang=config["trans"])
-        translated = self._services["stm"].apply_corrections(translated, target_lang)
+
+        # Apply word dictionary corrections using the AI as an oracle for each matched term
+        translator_fn = lambda w: self._services["translator"].translate(w, target_lang=config["trans"])
+        translated = self._services["stm"].apply_corrections(text, translated, target_lang, translator_fn)
+
         db.update_job_progress(job_id, 60, "Synthesizing Voice")
 
         output_filename = f"output_{job_id}_{target_lang}.wav"
@@ -133,7 +138,8 @@ class JobWorker:
 
             db.update_job_progress(job_id, 55, "Translating")
             translated = self._services["translator"].translate(english_text, target_lang=config["trans"])
-            translated = self._services["stm"].apply_corrections(translated, target_lang)
+            translator_fn = lambda w: self._services["translator"].translate(w, target_lang=config["trans"])
+            translated = self._services["stm"].apply_corrections(english_text, translated, target_lang, translator_fn)
 
             db.update_job_progress(job_id, 75, "Synthesizing Voice")
             output_filename = f"output_audio_{job_id}_{target_lang}.wav"
@@ -167,8 +173,7 @@ class JobWorker:
                 tts_lang_code=config["tts"],
                 progress_callback=lambda p, s: db.update_job_progress(job_id, p, s),
             )
-
-            translated_script = self._services["stm"].apply_corrections(translated_script, target_lang)
+            # translated_script already has STM corrections applied by video_engine
 
             result = {
                 "status": "success",
@@ -197,7 +202,8 @@ class JobWorker:
 
             db.update_job_progress(job_id, 40, "Translating")
             translated = self._services["translator"].translate(extracted_text, target_lang=config["trans"])
-            translated = self._services["stm"].apply_corrections(translated, target_lang)
+            translator_fn = lambda w: self._services["translator"].translate(w, target_lang=config["trans"])
+            translated = self._services["stm"].apply_corrections(extracted_text, translated, target_lang, translator_fn)
 
             db.update_job_progress(job_id, 70, "Synthesizing Voice")
             output_filename = f"output_ocr_{job_id}_{target_lang}.wav"

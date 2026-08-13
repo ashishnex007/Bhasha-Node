@@ -1,61 +1,89 @@
 """
 Bhasha Node - Semantic Translation Memory (STM)
-Uses simple string matching against a local SQLite dictionary for
-domain-specific agricultural term enforcement.
-Faiss vector search is available as an optional upgrade when
-sentence-transformers is installed.
+Word Dictionary: saves custom word pairs and applies them to translations.
+
+How it works:
+  The AI translates the full text first (unchanged).
+  Then for each saved word that appeared in the ORIGINAL English text,
+  we ask the AI "what would you translate just this word to?" — that gives
+  us the exact string to find and replace in the translated output.
+  This avoids any placeholder tricks that break with Indic script transliteration.
 """
 import re
 from db.database import db
 
 
 class STMService:
-    """
-    Post-processes translated text to enforce domain-specific terminology.
-    Reads correction pairs from the SQLite stm_terms table and applies
-    find-and-replace on translated output.
-    """
-
     def __init__(self):
-        print("[LOAD] STM (Semantic Translation Memory) engine ready.")
+        print("[LOAD] STM (Word Dictionary) engine ready.")
 
-    def apply_corrections(self, translated_text: str, target_language: str) -> str:
+    def apply_corrections(self, original_text: str, translated_text: str,
+                          target_language: str, translator_fn) -> str:
         """
-        Applies all STM term corrections for the given target language.
-        This is a post-processing step after IndicTrans2 inference.
+        Correct saved word pairs in a finished translation.
+
+        Args:
+            original_text   — the original English text that was sent to the AI
+            translated_text — the AI's translation output
+            target_language — DB key: "marathi" or "hindi"
+            translator_fn   — callable(word: str) -> str
+                              Translates a single word using the same AI model.
+                              Pass: lambda w: translator.translate(w, target_lang=config["trans"])
+
+        Returns:
+            Corrected translated text with saved word pairs applied.
         """
         terms = db.get_stm_terms(target_language=target_language)
         if not terms:
             return translated_text
 
-        corrected = translated_text
-        applied_count = 0
+        result = translated_text
+        applied = 0
 
         for term in terms:
             source = term["source_term"]
             target = term["target_term"]
-            # Case-insensitive replacement for English source terms
-            pattern = re.compile(re.escape(source), re.IGNORECASE)
-            new_text = pattern.sub(target, corrected)
-            if new_text != corrected:
-                applied_count += 1
-                corrected = new_text
 
-        if applied_count > 0:
-            print(f"[STM] Applied {applied_count} domain corrections for {target_language}")
+            # Only act if this word appears in the original English input
+            if not re.search(re.escape(source), original_text, re.IGNORECASE):
+                continue
 
-        return corrected
+            # Ask the AI what it translates just this one word/phrase to
+            try:
+                ai_word = translator_fn(source).strip()
+                if ai_word and ai_word in result:
+                    result = result.replace(ai_word, target)
+                    applied += 1
+                    print(f"[STM] '{source}' → AI said '{ai_word}' → replaced with '{target}'")
+                else:
+                    # Fallback: try case-insensitive match
+                    pattern = re.compile(re.escape(ai_word), re.IGNORECASE) if ai_word else None
+                    if pattern and pattern.search(result):
+                        result = pattern.sub(target, result)
+                        applied += 1
+                        print(f"[STM] '{source}' → AI said '{ai_word}' → replaced with '{target}' (case-insensitive)")
+                    else:
+                        print(f"[STM] Warning: AI translated '{source}' to '{ai_word}' but not found in output: '{result[:80]}'")
+            except Exception as e:
+                print(f"[STM] Warning: could not get AI translation for '{source}': {e}")
 
-    def add_term(self, source_term: str, target_term: str, target_language: str, domain: str = "agriculture"):
-        """Add a new correction term to the STM dictionary."""
+        if applied > 0:
+            print(f"[STM] Applied {applied} word correction(s) for {target_language}")
+
+        return result
+
+    # ── CRUD helpers ──────────────────────────────────────────
+    def add_term(self, source_term: str, target_term: str,
+                 target_language: str, domain: str = "agriculture"):
+        """Add a new word pair to the dictionary."""
         db.add_stm_term(source_term, target_term, target_language, domain)
-        print(f"[STM] Added term: '{source_term}' -> '{target_term}' ({target_language})")
+        print(f"[STM] Added: '{source_term}' → '{target_term}' ({target_language})")
 
     def get_terms(self, target_language: str = "") -> list[dict]:
-        """Retrieve all STM terms, optionally filtered by language."""
+        """Return all saved word pairs, optionally filtered by language."""
         return db.get_stm_terms(target_language)
 
     def delete_term(self, term_id: int):
-        """Remove a term from the STM dictionary."""
+        """Remove a word pair from the dictionary."""
         db.delete_stm_term(term_id)
         print(f"[STM] Deleted term ID: {term_id}")
