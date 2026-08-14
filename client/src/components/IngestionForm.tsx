@@ -13,6 +13,7 @@ interface IngestionFormProps {
     file: File | null;
     rawText: string;
     targetLanguage: string;
+    originalVideoUrl?: string;
   }) => void;
   isDisabled: boolean;
   detectedLanguage?: string; // 'hi' | 'mr' | 'en' | undefined
@@ -25,6 +26,8 @@ export default function IngestionForm({ darkMode, onSubmit, isDisabled, detected
   const [targetLang, setTargetLang] = useState('marathi');
   const [isDragging, setIsDragging] = useState(false);
   const [liveDetectedLang, setLiveDetectedLang] = useState<string | undefined>(undefined);
+  const [originalVideoObjectUrl, setOriginalVideoObjectUrl] = useState<string | undefined>(undefined);
+  const [audioPreviewUrl, setAudioPreviewUrl] = useState<string | undefined>(undefined);
 
   // ---- Client-side script detection (instant, no backend call) ----
   // Devanagari Unicode block: U+0900–U+097F covers both Hindi and Marathi
@@ -47,14 +50,16 @@ export default function IngestionForm({ darkMode, onSubmit, isDisabled, detected
     return 'mr';
   };
 
-  // The effective detected language: backend result takes priority, else live detection
-  const effectiveLang = detectedLanguage ?? liveDetectedLang;
+  // The effective detected language:
+  // - liveDetectedLang (from current file/typed text) takes highest priority
+  // - detectedLanguage (backend result from previous job) is the fallback
+  const effectiveLang = liveDetectedLang ?? detectedLanguage;
 
-  // Auto-select opposite language when effective detection changes
+  // Auto-select a valid target language whenever the detected source language changes
   useEffect(() => {
-    if (effectiveLang === 'hi') setTargetLang('marathi');
-    else if (effectiveLang === 'mr') setTargetLang('hindi');
-    // English/other: leave current selection untouched
+    if (effectiveLang === 'hi') setTargetLang('marathi');   // Hindi in → Marathi or English out
+    else if (effectiveLang === 'mr') setTargetLang('hindi'); // Marathi in → Hindi or English out
+    else setTargetLang('marathi');                           // English in → Marathi (default)
   }, [effectiveLang]);
 
   // Recording state
@@ -69,6 +74,11 @@ export default function IngestionForm({ darkMode, onSubmit, isDisabled, detected
     return () => { if (timerRef.current) clearInterval(timerRef.current); };
   }, []);
 
+  // Revoke audio preview URL when it changes to avoid memory leaks
+  useEffect(() => {
+    return () => { if (audioPreviewUrl) URL.revokeObjectURL(audioPreviewUrl); };
+  }, [audioPreviewUrl]);
+
   const categorizeFile = (f: File): FileCategory => {
     if (f.type.startsWith('video/')) return 'video';
     if (f.type.startsWith('audio/')) return 'audio';
@@ -80,10 +90,24 @@ export default function IngestionForm({ darkMode, onSubmit, isDisabled, detected
     const cat = categorizeFile(f);
     setFile(f);
     setFileCategory(cat);
+
     if (cat === 'text') {
       const reader = new FileReader();
-      reader.onload = (e) => setRawText(e.target?.result as string);
+      reader.onload = (e) => {
+        const text = e.target?.result as string;
+        setRawText(text);
+        // Run client-side language detection immediately on the file content
+        setLiveDetectedLang(localDetect(text));
+      };
       reader.readAsText(f);
+    }
+
+    if (cat === 'video') {
+      // Create an object URL for the original video so we can show side-by-side later
+      const url = URL.createObjectURL(f);
+      setOriginalVideoObjectUrl(url);
+    } else {
+      setOriginalVideoObjectUrl(undefined);
     }
   };
 
@@ -121,12 +145,17 @@ export default function IngestionForm({ darkMode, onSubmit, isDisabled, detected
         if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
         const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
         const audioFile = new File([audioBlob], 'recording.webm', { type: 'audio/webm' });
+        // Create preview URL once — stable, no re-renders resetting the audio player
+        const previewUrl = URL.createObjectURL(audioBlob);
+        setAudioPreviewUrl(previewUrl);
         setFile(audioFile);
         setFileCategory('audio');
         stream.getTracks().forEach(track => track.stop());
       };
 
-      mediaRecorder.start(250);
+      // Do NOT pass a timeslice — collect all chunks at once so the final
+      // WebM blob includes correct duration metadata (required for seeking)
+      mediaRecorder.start();
       setIsRecording(true);
 
       timerRef.current = setInterval(() => {
@@ -147,16 +176,20 @@ export default function IngestionForm({ darkMode, onSubmit, isDisabled, detected
   const handleSubmit = () => {
     const type = file ? fileCategory : (rawText.trim() ? 'text' : null);
     if (!type) return;
-    onSubmit({ type, file, rawText, targetLanguage: targetLang });
+    onSubmit({ type, file, rawText, targetLanguage: targetLang, originalVideoUrl: originalVideoObjectUrl });
   };
 
   const clearPayload = () => {
+    if (originalVideoObjectUrl) URL.revokeObjectURL(originalVideoObjectUrl);
+    if (audioPreviewUrl) URL.revokeObjectURL(audioPreviewUrl);
     setFile(null);
     setFileCategory(null);
     setRawText('');
     setRecordSeconds(0);
+    setOriginalVideoObjectUrl(undefined);
+    setLiveDetectedLang(undefined);
+    setAudioPreviewUrl(undefined);
   };
-
   const hasPayload = !!file || rawText.trim().length > 0;
   const bg = darkMode ? 'bg-[#111118]' : 'bg-white';
   const border = darkMode ? 'border-white/[0.06]' : 'border-black/[0.06]';
@@ -297,8 +330,8 @@ export default function IngestionForm({ darkMode, onSubmit, isDisabled, detected
               {fileTypeLabel} · {(file.size / 1024).toFixed(0)} KB
               {fileCategory === 'audio' && recordSeconds > 0 && ` · ${formatTime(recordSeconds)}`}
             </p>
-            {fileCategory === 'audio' && (
-              <audio controls src={URL.createObjectURL(file)} className="w-full h-9 mt-2" />
+            {fileCategory === 'audio' && audioPreviewUrl && (
+              <audio key={audioPreviewUrl} controls src={audioPreviewUrl} className="w-full h-9 mt-2" />
             )}
           </div>
           <button
@@ -325,52 +358,53 @@ export default function IngestionForm({ darkMode, onSubmit, isDisabled, detected
             </label>
 
             {/* Detected Source Badge */}
-            {effectiveLang && effectiveLang !== 'en' && (
+            {effectiveLang && (
               <div className={`flex items-center gap-2 mb-3 px-3 py-2 rounded-xl text-xs font-semibold w-fit ${
                 darkMode ? 'bg-indigo-500/[0.12] text-indigo-300 border border-indigo-500/20'
                          : 'bg-indigo-50 text-indigo-600 border border-indigo-200'
               }`}>
                 <Languages size={13} />
-                Detected Source: {effectiveLang === 'hi' ? 'Hindi हिन्दी' : 'Marathi मराठी'}
+                Detected Source:{' '}
+                {effectiveLang === 'hi' ? 'Hindi हिन्दी'
+                  : effectiveLang === 'mr' ? 'Marathi मराठी'
+                  : 'English'}
               </div>
             )}
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
               {([
-                { key: 'marathi', script: 'मराठी', native: 'Marathi' },
-                { key: 'hindi', script: 'हिन्दी', native: 'Hindi' },
-              ] as const).map(({ key, script, native }) => {
-                // Disable target if it matches the detected source language
-                const isSourceLang = (key === 'marathi' && effectiveLang === 'mr')
-                  || (key === 'hindi' && effectiveLang === 'hi');
+                { key: 'marathi', script: 'मराठी', native: 'Marathi', srcCode: 'mr' },
+                { key: 'hindi',   script: 'हिन्दी', native: 'Hindi',   srcCode: 'hi' },
+                { key: 'english', script: 'English', native: 'English', srcCode: 'en' },
+              ] as const).map(({ key, script, native, srcCode }) => {
+                // Hide the option that IS the source language
+                const isSourceLang = effectiveLang === srcCode;
+                // Also hide English option when source is already English
+                const isHidden = isSourceLang;
+                // For English input we show all non-English options (Marathi + Hindi)
+                // For Hindi input we show Marathi + English; for Marathi → Hindi + English
                 return (
                   <button
                     key={key}
                     onClick={() => !isSourceLang && setTargetLang(key)}
                     disabled={isSourceLang}
                     title={isSourceLang ? `Source is already ${native}` : undefined}
+                    style={{ display: isHidden ? 'none' : undefined }}
                     className={`p-4 rounded-2xl border-2 text-left transition-all ${
-                      isSourceLang
-                        ? `cursor-not-allowed opacity-40 ${
-                            darkMode ? 'border-white/[0.04] bg-white/[0.02]' : 'border-black/[0.04] bg-black/[0.01]'
-                          }`
-                        : targetLang === key
-                          ? 'border-indigo-500 bg-indigo-600 text-white shadow-lg shadow-indigo-600/20'
-                          : `${darkMode ? 'border-white/[0.07] text-zinc-300 hover:bg-white/[0.03]' : 'border-black/[0.07] text-zinc-700 hover:bg-black/[0.02]'}`
+                      targetLang === key
+                        ? 'border-indigo-500 bg-indigo-600 text-white shadow-lg shadow-indigo-600/20'
+                        : `${darkMode ? 'border-white/[0.07] text-zinc-300 hover:bg-white/[0.03]' : 'border-black/[0.07] text-zinc-700 hover:bg-black/[0.02]'}`
                     }`}
                   >
                     <div className="flex items-center justify-between mb-1">
                       <span className="text-base font-bold">{native}</span>
-                      {targetLang === key && !isSourceLang && <CheckCircle size={18} className="opacity-80" />}
+                      {targetLang === key && <CheckCircle size={18} className="opacity-80" />}
                     </div>
                     <span className={`text-lg font-semibold ${
-                      isSourceLang ? muted : targetLang === key ? 'text-indigo-200' : muted
+                      targetLang === key ? 'text-indigo-200' : muted
                     }`}>
                       {script}
                     </span>
-                    {isSourceLang && (
-                      <span className="block text-[10px] mt-1 opacity-60">Source language</span>
-                    )}
                   </button>
                 );
               })}

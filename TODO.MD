@@ -5,8 +5,25 @@
 - [x] Audio - MP3, WAV, AAC, M4A, FLAC, WMA, OGG
 - [x] Video Subtitles / Captions - SRT / VTT
 - [x] Text To Speech
-- [ ] ASR
-- [ ] Auto source Language detection + user selected target langugage
-- [ ] Async processing and job status and complete notification
-- [ ] Download output
+- [x] ASR
+- [x] Async processing and job status and complete notification
+- [x] Download output
+- [x] Domain Dictionary Faiss STM is not working
+- [x] Updated SYSTEM tab  
+- [x] Use simple language no need to have tech terms like infer etc. 
+- [x] Bigger Icons - simple UI but modern so that less literate / illiterate can easily understand 
+- [x] Side by side view for video 
+- [x] Auto source Language detection + user selected target langugage - partially done
+- [x] in case of processing failed - add a retry button 
+- [x] show the file size while downloading 
+- [x] new recording - bug undi - only starting 2 seconds audio (in preview) is coming not later than that
+- [x] new recording - there is no audio
 - [ ] Admin, User RBAC
+- [ ] OCR - Unable to get page count. Is poppler installed and in PATH?
+- [ ] add the one click setup 
+- [ ] mp4 to mp3 output download 
+- [ ] multi format download
+- [ ] try adding telugu - in simple steps he should be able to download the new languages 
+- [ ] THERE IS NO ENGLISH OUTPUT OPTION ANYWHERE
+- [ ] INPUT PREFERENCE ALSO IS NOT TAKEN 
+- [ ] Unsupported language: english

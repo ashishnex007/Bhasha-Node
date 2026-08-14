@@ -1,6 +1,7 @@
+import { useState, useEffect } from 'react';
 import {
-  ArrowLeft, Languages, Volume2, Video, Download,
-  CheckCircle, FileText, FileDown, Printer
+  ArrowLeft, Languages, Volume2, Video,
+  CheckCircle, FileText, FileDown, Printer, Loader2
 } from 'lucide-react';
 import type { PipelineResult } from '../services/api';
 
@@ -9,17 +10,37 @@ interface ResultViewerProps {
   result: PipelineResult;
   jobType: string;
   onBack: () => void;
+  originalVideoUrl?: string;
 }
 
-// ── Download helpers ──────────────────────────────────────────
-function downloadTxt(text: string, filename = 'translation.txt') {
+// ── Download helpers ─────────────────────────────────────────────────
+function downloadTxt(text: string, filename = 'bhasha-translation.txt') {
   const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
   a.download = filename;
+  document.body.appendChild(a);
   a.click();
+  document.body.removeChild(a);
   URL.revokeObjectURL(url);
+}
+
+/**
+ * Force-download a cross-origin URL by first fetching it as a blob.
+ * A plain <a download> is blocked by browsers for cross-origin resources.
+ */
+async function forceDownload(url: string, filename: string) {
+  const res = await fetch(url);
+  const blob = await res.blob();
+  const blobUrl = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = blobUrl;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(blobUrl);
 }
 
 function printAsPDF(originalText?: string, translatedText?: string) {
@@ -63,19 +84,83 @@ function printAsPDF(originalText?: string, translatedText?: string) {
   win.print();
 }
 
+/** Format byte count as human-readable string */
+function fmtBytes(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+/** Fetch the Content-Length of a remote URL and return a formatted size string */
+function useRemoteSize(url?: string): string {
+  const [size, setSize] = useState('');
+  useEffect(() => {
+    if (!url) { setSize(''); return; }
+    let cancelled = false;
+    fetch(url, { method: 'HEAD' })
+      .then(r => {
+        if (cancelled) return;
+        const len = r.headers.get('content-length');
+        if (len) setSize(fmtBytes(parseInt(len, 10)));
+      })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [url]);
+  return size;
+}
+
+/** Download button that fetches the file as a blob before saving, with loading state */
+function BlobDownloadBtn({
+  url, filename, icon, label, size, className,
+}: {
+  url: string; filename: string; icon: React.ReactNode;
+  label: string; size: string; className: string;
+}) {
+  const [busy, setBusy] = useState(false);
+  return (
+    <button
+      onClick={async () => {
+        setBusy(true);
+        try { await forceDownload(url, filename); } finally { setBusy(false); }
+      }}
+      disabled={busy}
+      className={className}
+    >
+      {busy
+        ? <Loader2 size={24} className="animate-spin text-zinc-400" />
+        : icon}
+      <span>{label}</span>
+      {size && <span className="opacity-50 text-[10px]">{size}</span>}
+    </button>
+  );
+}
+
 // ── Component ──────────────────────────────────────────────────
-export default function ResultViewer({ darkMode, result, jobType, onBack }: ResultViewerProps) {
+export default function ResultViewer({ darkMode, result, jobType, onBack, originalVideoUrl }: ResultViewerProps) {
   const border = darkMode ? 'border-white/[0.06]' : 'border-black/[0.06]';
   const bg = darkMode ? 'bg-[#111118]' : 'bg-white';
   const muted = darkMode ? 'text-zinc-500' : 'text-zinc-400';
   const sectionLabel = `text-xs font-semibold uppercase tracking-widest mb-3 flex items-center gap-2 ${muted}`;
-  const dlBtn = `flex flex-col items-center justify-center gap-2 px-4 py-4 rounded-xl border text-xs font-semibold transition-all active:scale-95 ${border} ${
+  const dlBtn = `flex flex-col items-center justify-center gap-1.5 px-4 py-4 rounded-xl border text-xs font-semibold transition-all active:scale-95 ${border} ${
     darkMode
       ? 'hover:bg-white/[0.04] hover:border-indigo-500/40 text-zinc-300'
       : 'hover:bg-indigo-50 hover:border-indigo-300 text-zinc-700'
   }`;
 
   const hasText = !!(result.original_text || result.translated_text);
+
+  // Pre-fetch file sizes for remote media
+  const audioSize = useRemoteSize(result.audio_url);
+  const videoSize = useRemoteSize(result.video_url);
+
+  // Compute txt blob size
+  const txtContent = [
+    result.original_text && `Original:\n${result.original_text}`,
+    result.translated_text && `\nTranslation:\n${result.translated_text}`,
+  ].filter(Boolean).join('\n');
+  const txtSize = txtContent ? fmtBytes(new Blob([txtContent]).size) : '';
+
+  const hasSideBySide = !!(result.video_url && originalVideoUrl);
 
   return (
     <div className="space-y-4 stagger">
@@ -97,11 +182,36 @@ export default function ResultViewer({ darkMode, result, jobType, onBack }: Resu
 
       {/* ── Video ── */}
       {result.video_url && (
-        <div className={`p-5 rounded-2xl border ${border} ${bg} animate-fadeUp`}>
-          <div className="flex items-center justify-between mb-3">
+        <div className={`rounded-2xl border ${border} ${bg} animate-fadeUp overflow-hidden`}>
+          <div className="p-5 pb-3">
             <span className={sectionLabel}><Video size={15} /> Translated Video</span>
           </div>
-          <video controls src={result.video_url} className="w-full rounded-xl bg-black" />
+
+          {/* Side-by-side when original video is available */}
+          {hasSideBySide ? (
+            <div className="grid grid-cols-2 gap-px bg-black/30">
+              {/* Original */}
+              <div className="relative bg-black">
+                <div className="absolute top-3 left-3 z-10 flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold bg-black/70 text-white backdrop-blur-sm">
+                  <Video size={11} /> Original
+                </div>
+                <video controls src={originalVideoUrl}
+                  className="w-full aspect-video object-contain" />
+              </div>
+              {/* Translated */}
+              <div className="relative bg-black">
+                <div className="absolute top-3 left-3 z-10 flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold bg-indigo-600/90 text-white backdrop-blur-sm">
+                  <Languages size={11} /> Translated
+                </div>
+                <video controls src={result.video_url}
+                  className="w-full aspect-video object-contain" />
+              </div>
+            </div>
+          ) : (
+            <div className="px-5 pb-5">
+              <video controls src={result.video_url} className="w-full rounded-xl bg-black" />
+            </div>
+          )}
         </div>
       )}
 
@@ -132,6 +242,7 @@ export default function ResultViewer({ darkMode, result, jobType, onBack }: Resu
         <div className={`p-5 rounded-2xl border ${border} ${bg} animate-fadeUp`}>
           <div className="flex items-center justify-between mb-3">
             <span className={sectionLabel}><Volume2 size={15} /> Voice Output</span>
+            {audioSize && <span className={`text-[11px] font-mono ${muted}`}>{audioSize}</span>}
           </div>
           <audio controls src={result.audio_url} className="w-full h-12" />
         </div>
@@ -141,19 +252,17 @@ export default function ResultViewer({ darkMode, result, jobType, onBack }: Resu
       {(hasText || result.audio_url || result.video_url) && (
         <div className={`p-5 rounded-2xl border ${border} ${bg} animate-fadeUp`}>
           <span className={sectionLabel}><FileDown size={15} /> Save / Download</span>
-          <div className={`grid gap-3 ${result.audio_url && result.video_url ? 'grid-cols-4' : result.audio_url || result.video_url ? 'grid-cols-3' : 'grid-cols-2'}`}>
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
 
             {/* TXT */}
             {hasText && (
               <button
-                onClick={() => downloadTxt(
-                  [result.original_text && `Original:\n${result.original_text}`, result.translated_text && `\nTranslation:\n${result.translated_text}`].filter(Boolean).join('\n'),
-                  'bhasha-translation.txt'
-                )}
+                onClick={() => downloadTxt(txtContent, 'bhasha-translation.txt')}
                 className={dlBtn}
               >
                 <FileText size={24} className="text-indigo-400" />
                 <span>Text (.txt)</span>
+                {txtSize && <span className="opacity-50 text-[10px]">{txtSize}</span>}
               </button>
             )}
 
@@ -168,20 +277,28 @@ export default function ResultViewer({ darkMode, result, jobType, onBack }: Resu
               </button>
             )}
 
-            {/* Audio WAV */}
+            {/* Audio — force-download via blob fetch */}
             {result.audio_url && (
-              <a href={result.audio_url} download className={dlBtn}>
-                <Volume2 size={24} className="text-amber-400" />
-                <span>Audio (.wav)</span>
-              </a>
+              <BlobDownloadBtn
+                url={result.audio_url}
+                filename="bhasha-translation.wav"
+                icon={<Volume2 size={24} className="text-amber-400" />}
+                label="Audio (.wav)"
+                size={audioSize}
+                className={dlBtn}
+              />
             )}
 
-            {/* Video MP4 */}
+            {/* Video — force-download via blob fetch */}
             {result.video_url && (
-              <a href={result.video_url} download className={dlBtn}>
-                <Video size={24} className="text-emerald-400" />
-                <span>Video (.mp4)</span>
-              </a>
+              <BlobDownloadBtn
+                url={result.video_url}
+                filename="bhasha-translated.mp4"
+                icon={<Video size={24} className="text-emerald-400" />}
+                label="Video (.mp4)"
+                size={videoSize}
+                className={dlBtn}
+              />
             )}
           </div>
         </div>

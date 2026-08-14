@@ -22,6 +22,7 @@ export default function App() {
   const [currentResult, setCurrentResult] = useState<PipelineResult | null>(null);
   const [currentJobType, setCurrentJobType] = useState('text');
   const [detectedLanguage, setDetectedLanguage] = useState<string | undefined>(undefined);
+  const [originalVideoUrl, setOriginalVideoUrl] = useState<string | undefined>(undefined);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const [historyOpen, setHistoryOpen] = useState(false);
@@ -59,9 +60,11 @@ export default function App() {
 
   // ---- Job submission ----
   const handleSubmit = async (payload: {
-    type: string | null; file: File | null; rawText: string; targetLanguage: string;
+    type: string | null; file: File | null; rawText: string; targetLanguage: string; originalVideoUrl?: string;
   }) => {
     if (!payload.type) return;
+    // Store original video URL for side-by-side result view
+    setOriginalVideoUrl(payload.originalVideoUrl);
     try {
       let response;
       if (payload.type === 'text') {
@@ -111,7 +114,13 @@ export default function App() {
   useEffect(() => () => { if (pollRef.current) clearInterval(pollRef.current); }, []);
 
   // ---- Navigation ----
-  const handleBack = () => { setView('input'); setCurrentJob(null); setCurrentResult(null); };
+  const handleBack = () => {
+    setView('input');
+    setCurrentJob(null);
+    setCurrentResult(null);
+    setOriginalVideoUrl(undefined);
+    setDetectedLanguage(undefined);
+  };
 
   const handleHistorySelect = (rec: InferenceRecord) => {
     setHistoryOpen(false);
@@ -184,10 +193,10 @@ export default function App() {
               <IngestionForm darkMode={darkMode} onSubmit={handleSubmit} isDisabled={false} detectedLanguage={detectedLanguage} />
             )}
             {view === 'processing' && currentJob && (
-              <JobProgress darkMode={darkMode} job={currentJob} />
+              <JobProgress darkMode={darkMode} job={currentJob} onRetry={handleBack} />
             )}
             {view === 'result' && currentResult && (
-              <ResultViewer darkMode={darkMode} result={currentResult} jobType={currentJobType} onBack={handleBack} />
+              <ResultViewer darkMode={darkMode} result={currentResult} jobType={currentJobType} onBack={handleBack} originalVideoUrl={originalVideoUrl} />
             )}
           </div>
         </div>

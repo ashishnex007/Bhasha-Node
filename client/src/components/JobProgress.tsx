@@ -1,9 +1,10 @@
-import { Loader2, CheckCircle, AlertTriangle } from 'lucide-react';
+import { Loader2, CheckCircle, AlertTriangle, RotateCcw } from 'lucide-react';
 import type { JobStatus } from '../services/api';
 
 interface JobProgressProps {
   darkMode: boolean;
   job: JobStatus;
+  onRetry?: () => void;
 }
 
 // Map technical stage names to plain language
@@ -24,7 +25,7 @@ const stageLabel = (stage: string) => {
   return map[stage] || stage;
 };
 
-export default function JobProgress({ darkMode, job }: JobProgressProps) {
+export default function JobProgress({ darkMode, job, onRetry }: JobProgressProps) {
   const isComplete = job.status === 'complete';
   const isError = job.status === 'error';
   const muted = darkMode ? 'text-zinc-500' : 'text-zinc-400';
@@ -77,6 +78,16 @@ export default function JobProgress({ darkMode, job }: JobProgressProps) {
       }`}>
         {isError ? job.error : stageLabel(job.stage)}
       </p>
+
+      {/* Retry button — only shown on error */}
+      {isError && onRetry && (
+        <button
+          onClick={onRetry}
+          className="mt-5 w-full py-3 rounded-2xl text-sm font-bold flex items-center justify-center gap-2.5 bg-red-500/10 text-red-400 border border-red-500/20 hover:bg-red-500/20 hover:border-red-500/40 transition-all active:scale-[0.99]"
+        >
+          <RotateCcw size={16} /> Try Again
+        </button>
+      )}
     </div>
   );
 }
