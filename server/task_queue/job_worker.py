@@ -29,7 +29,8 @@ class JobWorker:
         self._thread.start()
         print("[QUEUE] Background job worker thread started.")
 
-    def register_services(self, asr, translator, tts, video_engine, ocr_engine, stm_engine):
+    def register_services(self, asr, translator, tts, video_engine, ocr_engine, stm_engine,
+                          lang_detector=None):
         """Late-bind ML services after they finish loading."""
         self._services = {
             "asr": asr,
@@ -38,6 +39,7 @@ class JobWorker:
             "video": video_engine,
             "ocr": ocr_engine,
             "stm": stm_engine,
+            "lang_detector": lang_detector,
         }
         print("[QUEUE] ML services registered with job worker.")
 
@@ -93,6 +95,13 @@ class JobWorker:
     def _process_text(self, job_id: str, text: str, target_lang: str, config: dict):
         db.update_job_progress(job_id, 20, "Translating")
 
+        # Detect source language before translation
+        detected_lang = "en"
+        lang_detector = self._services.get("lang_detector")
+        if lang_detector:
+            detected_lang = lang_detector.detect(text)
+            print(f"[LID] Text job {job_id}: detected source language = '{detected_lang}'")
+
         # Translate the full text normally
         translated = self._services["translator"].translate(text, target_lang=config["trans"])
 
@@ -111,6 +120,7 @@ class JobWorker:
             "original_text": text,
             "translated_text": translated,
             "audio_url": f"{BASE_URL}/{output_filename}",
+            "detected_source_language": detected_lang,
         }
         db.complete_job(job_id, result)
         db.save_inference(job_id, "text", text, translated, target_lang,
@@ -136,6 +146,13 @@ class JobWorker:
                 db.fail_job(job_id, "Audio contained no recognizable speech.")
                 return
 
+            # Detect language of transcribed text
+            detected_lang = "en"
+            lang_detector = self._services.get("lang_detector")
+            if lang_detector:
+                detected_lang = lang_detector.detect(english_text)
+                print(f"[LID] Audio job {job_id}: detected source language = '{detected_lang}'")
+
             db.update_job_progress(job_id, 55, "Translating")
             translated = self._services["translator"].translate(english_text, target_lang=config["trans"])
             translator_fn = lambda w: self._services["translator"].translate(w, target_lang=config["trans"])
@@ -151,6 +168,7 @@ class JobWorker:
                 "original_text": english_text,
                 "translated_text": translated,
                 "audio_url": f"{BASE_URL}/{output_filename}",
+                "detected_source_language": detected_lang,
             }
             db.complete_job(job_id, result)
             db.save_inference(job_id, "audio", english_text, translated, target_lang,
@@ -175,10 +193,19 @@ class JobWorker:
             )
             # translated_script already has STM corrections applied by video_engine
 
+            # Detect language on the translated script (it's in Indic script so
+            # fastText will correctly identify the target script as hi/mr/en)
+            detected_lang = "en"
+            lang_detector = self._services.get("lang_detector")
+            if lang_detector and translated_script:
+                detected_lang = lang_detector.detect(translated_script)
+                print(f"[LID] Video job {job_id}: detected output language = '{detected_lang}'")
+
             result = {
                 "status": "success",
                 "translated_text": translated_script,
                 "video_url": f"{BASE_URL}/{result_filename}",
+                "detected_source_language": detected_lang,
             }
             db.complete_job(job_id, result)
             db.save_inference(job_id, "video", "", translated_script, target_lang,

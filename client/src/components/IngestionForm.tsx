@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import {
   UploadCloud, FileText, Mic, Video, Image as ImageIcon,
-  Square, CheckCircle, Send, X
+  Square, CheckCircle, Send, X, Languages
 } from 'lucide-react';
 
 type FileCategory = 'text' | 'audio' | 'video' | 'ocr' | null;
@@ -15,14 +15,47 @@ interface IngestionFormProps {
     targetLanguage: string;
   }) => void;
   isDisabled: boolean;
+  detectedLanguage?: string; // 'hi' | 'mr' | 'en' | undefined
 }
 
-export default function IngestionForm({ darkMode, onSubmit, isDisabled }: IngestionFormProps) {
+export default function IngestionForm({ darkMode, onSubmit, isDisabled, detectedLanguage }: IngestionFormProps) {
   const [file, setFile] = useState<File | null>(null);
   const [fileCategory, setFileCategory] = useState<FileCategory>(null);
   const [rawText, setRawText] = useState('');
   const [targetLang, setTargetLang] = useState('marathi');
   const [isDragging, setIsDragging] = useState(false);
+  const [liveDetectedLang, setLiveDetectedLang] = useState<string | undefined>(undefined);
+
+  // ---- Client-side script detection (instant, no backend call) ----
+  // Devanagari Unicode block: U+0900–U+097F covers both Hindi and Marathi
+  const localDetect = (text: string): string | undefined => {
+    if (!text || text.trim().length < 3) return undefined;
+    const devanagariCount = (text.match(/[\u0900-\u097F]/g) || []).length;
+    const totalChars = text.replace(/\s/g, '').length;
+    if (totalChars === 0) return undefined;
+    const devanagariRatio = devanagariCount / totalChars;
+    if (devanagariRatio < 0.3) return 'en'; // mostly Latin → English
+    // Marathi-specific morphemes: आहे, च्या, ला, ने, ची, चे, ते, आणि
+    const marathiPatterns = /आहे|च्या|\sला\s|\sने\s|ची\s|चे\s|\sते\s|आणि|होते|नाही/;
+    // Hindi-specific morphemes: है, हैं, का, की, के, में, से, को, था, थी
+    const hindiPatterns = /\sहै\s|\sहैं|\sका\s|\sकी\s|\sके\s|\sमें\s|\sसे\s|\sको\s|था\s|\sथी\s|होना/;
+    const marathiScore = (text.match(marathiPatterns) || []).length;
+    const hindiScore = (text.match(hindiPatterns) || []).length;
+    if (marathiScore > hindiScore) return 'mr';
+    if (hindiScore > marathiScore) return 'hi';
+    // Equal or no morphemes — default to Marathi for Devanagari (more common in this app)
+    return 'mr';
+  };
+
+  // The effective detected language: backend result takes priority, else live detection
+  const effectiveLang = detectedLanguage ?? liveDetectedLang;
+
+  // Auto-select opposite language when effective detection changes
+  useEffect(() => {
+    if (effectiveLang === 'hi') setTargetLang('marathi');
+    else if (effectiveLang === 'mr') setTargetLang('hindi');
+    // English/other: leave current selection untouched
+  }, [effectiveLang]);
 
   // Recording state
   const [isRecording, setIsRecording] = useState(false);
@@ -228,8 +261,11 @@ export default function IngestionForm({ darkMode, onSubmit, isDisabled }: Ingest
           {/* ── Text Area ── */}
           <textarea
             value={rawText}
-            onChange={(e) => setRawText(e.target.value)}
-            placeholder="Type or paste English text here..."
+            onChange={(e) => {
+              setRawText(e.target.value);
+              setLiveDetectedLang(localDetect(e.target.value));
+            }}
+            placeholder="Type or paste text here (English, Hindi, or Marathi)..."
             rows={4}
             className={`w-full p-4 rounded-2xl border-2 text-sm outline-none resize-none transition-all focus:ring-2 focus:ring-indigo-500/20 ${
               darkMode
@@ -287,29 +323,57 @@ export default function IngestionForm({ darkMode, onSubmit, isDisabled }: Ingest
             <label className={`block text-xs font-bold uppercase tracking-widest mb-3 ${muted}`}>
               Translate to which language?
             </label>
+
+            {/* Detected Source Badge */}
+            {effectiveLang && effectiveLang !== 'en' && (
+              <div className={`flex items-center gap-2 mb-3 px-3 py-2 rounded-xl text-xs font-semibold w-fit ${
+                darkMode ? 'bg-indigo-500/[0.12] text-indigo-300 border border-indigo-500/20'
+                         : 'bg-indigo-50 text-indigo-600 border border-indigo-200'
+              }`}>
+                <Languages size={13} />
+                Detected Source: {effectiveLang === 'hi' ? 'Hindi हिन्दी' : 'Marathi मराठी'}
+              </div>
+            )}
+
             <div className="grid grid-cols-2 gap-3">
               {([
                 { key: 'marathi', script: 'मराठी', native: 'Marathi' },
                 { key: 'hindi', script: 'हिन्दी', native: 'Hindi' },
-              ] as const).map(({ key, script, native }) => (
-                <button
-                  key={key}
-                  onClick={() => setTargetLang(key)}
-                  className={`p-4 rounded-2xl border-2 text-left transition-all ${
-                    targetLang === key
-                      ? 'border-indigo-500 bg-indigo-600 text-white shadow-lg shadow-indigo-600/20'
-                      : `${darkMode ? 'border-white/[0.07] text-zinc-300 hover:bg-white/[0.03]' : 'border-black/[0.07] text-zinc-700 hover:bg-black/[0.02]'}`
-                  }`}
-                >
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="text-base font-bold">{native}</span>
-                    {targetLang === key && <CheckCircle size={18} className="opacity-80" />}
-                  </div>
-                  <span className={`text-lg font-semibold ${targetLang === key ? 'text-indigo-200' : muted}`}>
-                    {script}
-                  </span>
-                </button>
-              ))}
+              ] as const).map(({ key, script, native }) => {
+                // Disable target if it matches the detected source language
+                const isSourceLang = (key === 'marathi' && effectiveLang === 'mr')
+                  || (key === 'hindi' && effectiveLang === 'hi');
+                return (
+                  <button
+                    key={key}
+                    onClick={() => !isSourceLang && setTargetLang(key)}
+                    disabled={isSourceLang}
+                    title={isSourceLang ? `Source is already ${native}` : undefined}
+                    className={`p-4 rounded-2xl border-2 text-left transition-all ${
+                      isSourceLang
+                        ? `cursor-not-allowed opacity-40 ${
+                            darkMode ? 'border-white/[0.04] bg-white/[0.02]' : 'border-black/[0.04] bg-black/[0.01]'
+                          }`
+                        : targetLang === key
+                          ? 'border-indigo-500 bg-indigo-600 text-white shadow-lg shadow-indigo-600/20'
+                          : `${darkMode ? 'border-white/[0.07] text-zinc-300 hover:bg-white/[0.03]' : 'border-black/[0.07] text-zinc-700 hover:bg-black/[0.02]'}`
+                    }`}
+                  >
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-base font-bold">{native}</span>
+                      {targetLang === key && !isSourceLang && <CheckCircle size={18} className="opacity-80" />}
+                    </div>
+                    <span className={`text-lg font-semibold ${
+                      isSourceLang ? muted : targetLang === key ? 'text-indigo-200' : muted
+                    }`}>
+                      {script}
+                    </span>
+                    {isSourceLang && (
+                      <span className="block text-[10px] mt-1 opacity-60">Source language</span>
+                    )}
+                  </button>
+                );
+              })}
             </div>
           </div>
 

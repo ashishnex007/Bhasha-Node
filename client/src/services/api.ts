@@ -33,6 +33,7 @@ export interface PipelineResult {
   translated_text?: string;
   audio_url?: string;
   video_url?: string;
+  detected_source_language?: string;
 }
 
 export interface InferenceRecord {

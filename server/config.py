@@ -11,11 +11,16 @@ from pathlib import Path
 BASE_DIR = Path(__file__).resolve().parent
 OUTPUT_DIR = BASE_DIR / "outputs"
 DATA_DIR = BASE_DIR / "data"
+MODELS_DIR = BASE_DIR / "models"
 DB_PATH = DATA_DIR / "bhasha_node.db"
+
+# Model paths
+FASTTEXT_MODEL_PATH = MODELS_DIR / "lid.176.ftz"
 
 # Ensure directories exist
 OUTPUT_DIR.mkdir(exist_ok=True)
 DATA_DIR.mkdir(exist_ok=True)
+MODELS_DIR.mkdir(exist_ok=True)
 
 # ==========================================
 # CORS & SERVER

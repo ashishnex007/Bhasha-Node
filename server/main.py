@@ -57,6 +57,7 @@ def startup_event():
     from services.ocr_engine import OCRService
     from services.stm_engine import STMService
     from services.system_engine import SystemService
+    from services.language_detection_engine import LanguageDetectionService
     from task_queue.job_worker import worker
 
     print("\n[1/6] Loading Translation Service (IndicTrans2 200M)...")
@@ -78,6 +79,9 @@ def startup_event():
     print("[6/6] Loading OCR Service (Tesseract)...")
     ocr_engine = OCRService()
 
+    print("[7/7] Loading Language Detection Service (fastText LID)...")
+    lang_detector = LanguageDetectionService()
+
     # Register services with routers that need them
     stm.init(stm_service)
     system.init(system_service)
@@ -90,6 +94,7 @@ def startup_event():
         video_engine=video_engine,
         ocr_engine=ocr_engine,
         stm_engine=stm_service,
+        lang_detector=lang_detector,
     )
 
     print("\n" + "=" * 60)

@@ -21,11 +21,13 @@ export default function App() {
   const [currentJob, setCurrentJob] = useState<JobStatus | null>(null);
   const [currentResult, setCurrentResult] = useState<PipelineResult | null>(null);
   const [currentJobType, setCurrentJobType] = useState('text');
+  const [detectedLanguage, setDetectedLanguage] = useState<string | undefined>(undefined);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const [historyOpen, setHistoryOpen] = useState(false);
   const [stmOpen, setSTMOpen] = useState(false);
 
+  const [serverLive, setServerLive] = useState(false);
   const [stats, setStats] = useState<SystemStats>({
     cpu_percent: 0, ram_used_gb: 0, ram_total_gb: 16,
     ram_percent: 0, disk_used_gb: 0, disk_total_gb: 0, disk_percent: 0,
@@ -38,11 +40,20 @@ export default function App() {
 
   // ---- Telemetry polling ----
   useEffect(() => {
+    let failCount = 0;
     const poll = async () => {
-      try { setStats(await fetchSystemStats()); } catch {}
+      try {
+        const data = await fetchSystemStats();
+        setStats(data);
+        setServerLive(true);
+        failCount = 0;
+      } catch {
+        failCount++;
+        if (failCount >= 3) setServerLive(false);
+      }
     };
     poll();
-    const id = setInterval(poll, 4000);
+    const id = setInterval(poll, 2000);
     return () => clearInterval(id);
   }, []);
 
@@ -87,12 +98,14 @@ export default function App() {
         if (job.status === 'complete') {
           clearInterval(pollRef.current!); pollRef.current = null;
           setCurrentResult(job.result || null);
+          // Surface detected language for the next submission's selector
+          setDetectedLanguage(job.result?.detected_source_language);
           setView('result');
         } else if (job.status === 'error') {
           clearInterval(pollRef.current!); pollRef.current = null;
         }
       } catch {}
-    }, 1500);
+    }, 1000);
   }, []);
 
   useEffect(() => () => { if (pollRef.current) clearInterval(pollRef.current); }, []);
@@ -144,7 +157,7 @@ export default function App() {
 
         {/* Telemetry */}
         <div className="p-4">
-          <TelemetryCard darkMode={darkMode} stats={stats} />
+          <TelemetryCard darkMode={darkMode} stats={stats} isLive={serverLive} />
         </div>
       </aside>
 
@@ -168,7 +181,7 @@ export default function App() {
             </div>
 
             {view === 'input' && (
-              <IngestionForm darkMode={darkMode} onSubmit={handleSubmit} isDisabled={false} />
+              <IngestionForm darkMode={darkMode} onSubmit={handleSubmit} isDisabled={false} detectedLanguage={detectedLanguage} />
             )}
             {view === 'processing' && currentJob && (
               <JobProgress darkMode={darkMode} job={currentJob} />

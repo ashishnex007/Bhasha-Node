@@ -14,3 +14,4 @@ psutil
 Pillow
 pytesseract
 pdf2image
+fasttext-langdetect
