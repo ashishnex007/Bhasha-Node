@@ -9,7 +9,7 @@ import pytesseract
 pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
 
 # Point Poppler to the bin folder (Update this to your exact path if needed)
-POPPLER_BIN_PATH = r"C:\poppler\poppler-24.02.0\Library\bin"
+POPPLER_BIN_PATH = r"C:\Program Files\poppler\bin"
 
 # Point Tesseract to your new HIGH-ACCURACY trained data folder
 # Using absolute path for safety during local testing

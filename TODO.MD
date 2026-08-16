@@ -18,12 +18,8 @@
 - [x] show the file size while downloading 
 - [x] new recording - bug undi - only starting 2 seconds audio (in preview) is coming not later than that
 - [x] new recording - there is no audio
+- [x] OCR - Unable to get page count. Is poppler installed and in PATH?
 - [ ] Admin, User RBAC
-- [ ] OCR - Unable to get page count. Is poppler installed and in PATH?
 - [ ] add the one click setup 
-- [ ] mp4 to mp3 output download 
-- [ ] multi format download
 - [ ] try adding telugu - in simple steps he should be able to download the new languages 
-- [ ] THERE IS NO ENGLISH OUTPUT OPTION ANYWHERE
-- [ ] INPUT PREFERENCE ALSO IS NOT TAKEN 
 - [ ] Unsupported language: english

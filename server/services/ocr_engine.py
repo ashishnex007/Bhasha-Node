@@ -7,6 +7,11 @@ import os
 import time
 from pathlib import Path
 
+# Explicit paths for Windows — pdf2image/Tesseract won't pick these up from
+# PATH automatically when running inside a venv or via a server process.
+POPPLER_BIN_PATH = r"C:\Program Files\poppler\bin"
+TESSERACT_CMD = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
+
 try:
     from PIL import Image
     HAS_PIL = True
@@ -15,6 +20,7 @@ except ImportError:
 
 try:
     import pytesseract
+    pytesseract.pytesseract.tesseract_cmd = TESSERACT_CMD
     HAS_TESSERACT = True
 except ImportError:
     HAS_TESSERACT = False
@@ -77,7 +83,7 @@ class OCRService:
         lang = self._get_tesseract_lang(target_language)
 
         print(f"[OCR] Converting PDF to images: {pdf_path}")
-        images = convert_from_path(pdf_path, dpi=300)
+        images = convert_from_path(pdf_path, dpi=300, poppler_path=POPPLER_BIN_PATH)
 
         all_text = []
         for i, page_img in enumerate(images):

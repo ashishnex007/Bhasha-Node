@@ -52,6 +52,7 @@ ASR_DEVICE = "cpu"
 ASR_COMPUTE_TYPE = "int8"
 
 TRANSLATION_MODEL = "ai4bharat/indictrans2-en-indic-dist-200M"
+TRANSLATION_MODEL_INDIC_INDIC = "ai4bharat/indictrans2-indic-indic-dist-200M"
 
 TTS_MODELS = {
     "mar": "facebook/mms-tts-mar",
