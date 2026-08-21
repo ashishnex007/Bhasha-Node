@@ -35,7 +35,10 @@ import type {
 type AppView = 'input' | 'processing' | 'result';
 
 export default function App() {
-  const { t } = useLanguage();
+  const {
+    t,
+    hasSelectedLanguage,
+  } = useLanguage();
 
   // ==========================================
   // STATE
@@ -74,7 +77,13 @@ export default function App() {
   // ==========================================
 
   const [langSelectorOpen, setLangSelectorOpen] =
-    useState(false);
+  useState(() => {
+    return (
+      localStorage.getItem(
+        'bhasha_language_selected'
+      ) !== 'true'
+    );
+  });
 
   // ==========================================
   // SYSTEM TELEMETRY
@@ -520,12 +529,6 @@ export default function App() {
               true
             )
           }
-
-          onOpenLanguageSelector={() =>
-            setLangSelectorOpen(
-              true
-            )
-          }
         />
 
         {/* CONTENT */}
@@ -676,20 +679,11 @@ export default function App() {
           ====================================== */}
 
       <LanguagePopup
-        darkMode={
-          darkMode
-        }
-
-        isOpen={
-          langSelectorOpen
-        }
-
-        onClose={() =>
-          setLangSelectorOpen(
-            false
-          )
-        }
+        darkMode={darkMode}
+        isOpen={langSelectorOpen}
+        onClose={() => setLangSelectorOpen(false)}
       />
+
 
     </div>
   );
