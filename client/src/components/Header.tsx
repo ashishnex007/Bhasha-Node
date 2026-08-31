@@ -4,6 +4,8 @@ import {
   Clock,
   BookOpen,
   Globe,
+  Sparkles,
+  Layers,
 } from 'lucide-react';
 
 import {
@@ -13,6 +15,8 @@ import {
 
 interface HeaderProps {
   darkMode: boolean;
+  activeTab: 'translate' | 'knowledge';
+  onSelectTab: (tab: 'translate' | 'knowledge') => void;
   onToggleDarkMode: () => void;
   onOpenHistory: () => void;
   onOpenSTM: () => void;
@@ -20,6 +24,8 @@ interface HeaderProps {
 
 export default function Header({
   darkMode,
+  activeTab,
+  onSelectTab,
   onToggleDarkMode,
   onOpenHistory,
   onOpenSTM,
@@ -30,7 +36,7 @@ export default function Header({
     setLanguage,
   } = useLanguage();
 
-  const btn = `px-4 py-2.5 rounded-xl text-sm font-semibold flex items-center gap-2.5 transition-all ${
+  const btn = `px-3.5 py-2 rounded-xl text-sm font-semibold flex items-center gap-2 transition-all ${
     darkMode
       ? 'text-zinc-300 hover:text-white hover:bg-white/[0.06]'
       : 'text-zinc-600 hover:text-zinc-900 hover:bg-black/[0.04]'
@@ -62,26 +68,65 @@ export default function Header({
           : 'bg-white border-black/[0.06]'
       }`}
     >
-      {/* Logo */}
-      <div className="flex items-center gap-3">
-        <div className="h-9 w-9 bg-indigo-600 rounded-xl flex items-center justify-center text-white text-sm font-extrabold shadow-lg shadow-indigo-600/20">
-          B
+      {/* Logo & Mode Tabs */}
+      <div className="flex items-center gap-6">
+        <div className="flex items-center gap-3">
+          <div className="h-9 w-9 bg-indigo-600 rounded-xl flex items-center justify-center text-white text-sm font-extrabold shadow-lg shadow-indigo-600/20">
+            B
+          </div>
+
+          <div>
+            <span className="font-bold text-sm tracking-tight">
+              Bhasha Node
+            </span>
+
+            <span
+              className={`ml-2 text-[10px] px-1.5 py-0.5 rounded font-semibold ${
+                darkMode
+                  ? 'bg-emerald-500/10 text-emerald-400'
+                  : 'bg-emerald-50 text-emerald-600'
+              }`}
+            >
+              {t('header.offline')}
+            </span>
+          </div>
         </div>
 
-        <div>
-          <span className="font-bold text-sm tracking-tight">
-            Bhasha Node
-          </span>
-
-          <span
-            className={`ml-2 text-[10px] px-1.5 py-0.5 rounded font-semibold ${
-              darkMode
-                ? 'bg-emerald-500/10 text-emerald-400'
-                : 'bg-emerald-50 text-emerald-600'
+        {/* Mode Switcher Tabs */}
+        <div
+          className={`flex items-center gap-1 p-1 rounded-xl border ${
+            darkMode
+              ? 'bg-white/[0.03] border-white/[0.06]'
+              : 'bg-black/[0.03] border-black/[0.06]'
+          }`}
+        >
+          <button
+            onClick={() => onSelectTab('translate')}
+            className={`px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-2 transition-all ${
+              activeTab === 'translate'
+                ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/20'
+                : darkMode
+                ? 'text-zinc-400 hover:text-zinc-200'
+                : 'text-zinc-600 hover:text-zinc-900'
             }`}
           >
-            {t('header.offline')}
-          </span>
+            <Layers size={14} />
+            Translation Studio
+          </button>
+
+          <button
+            onClick={() => onSelectTab('knowledge')}
+            className={`px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-2 transition-all ${
+              activeTab === 'knowledge'
+                ? 'bg-gradient-to-r from-emerald-500 to-indigo-600 text-white shadow-md shadow-emerald-500/20'
+                : darkMode
+                ? 'text-zinc-400 hover:text-zinc-200'
+                : 'text-zinc-600 hover:text-zinc-900'
+            }`}
+          >
+            <Sparkles size={14} className={activeTab === 'knowledge' ? 'text-amber-300' : 'text-emerald-400'} />
+            Knowledge Assistant
+          </button>
         </div>
       </div>
 
@@ -93,7 +138,7 @@ export default function Header({
           className={btn}
           id="btn-history"
         >
-          <Clock size={18} />
+          <Clock size={16} />
           {t('header.pastWork')}
         </button>
 
@@ -103,7 +148,7 @@ export default function Header({
           className={btn}
           id="btn-stm"
         >
-          <BookOpen size={18} />
+          <BookOpen size={16} />
           {t('header.wordList')}
         </button>
 

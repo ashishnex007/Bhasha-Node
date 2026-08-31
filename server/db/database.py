@@ -172,6 +172,24 @@ class Database:
         with self._conn() as conn:
             conn.execute("DELETE FROM stm_terms WHERE id=?", (term_id,))
 
+    # ==========================================
+    # KNOWLEDGE BASE INDEXING
+    # ==========================================
+    def get_all_inferences_for_indexing(self) -> list[dict]:
+        """
+        Return every inference record that has useful text content.
+        Used by KnowledgeBase.rebuild_from_history() to populate the FAISS index.
+        """
+        with self._conn() as conn:
+            rows = conn.execute(
+                """SELECT id, job_id, input_type, original_text, translated_text,
+                          file_name, target_language, created_at
+                   FROM inferences
+                   WHERE original_text IS NOT NULL AND original_text != ''
+                   ORDER BY created_at ASC"""
+            ).fetchall()
+            return [dict(r) for r in rows]
+
 
 # Singleton instance
 db = Database()

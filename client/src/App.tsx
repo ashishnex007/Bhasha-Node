@@ -14,6 +14,7 @@ import ResultViewer from './components/ResultViewer';
 import HistoryDrawer from './components/HistoryDrawer';
 import STMModal from './components/STMModal';
 import LanguagePopup from './components/LanguagePopup';
+import KnowledgeAssistant from './components/KnowledgeAssistant';
 
 import { useLanguage } from './i18n/LanguageContext';
 
@@ -46,6 +47,8 @@ export default function App() {
   // ==========================================
 
   const [darkMode, setDarkMode] = useState(true);
+
+  const [activeMode, setActiveMode] = useState<'translate' | 'knowledge'>('translate');
 
   const [view, setView] = useState<AppView>('input');
 
@@ -517,131 +520,122 @@ export default function App() {
         {/* HEADER */}
 
         <Header
-          darkMode={
-            darkMode
-          }
-
-          onToggleDarkMode={() =>
-            setDarkMode(
-              !darkMode
-            )
-          }
-
-          onOpenHistory={() =>
-            setHistoryOpen(
-              true
-            )
-          }
-
-          onOpenSTM={() =>
-            setSTMOpen(
-              true
-            )
-          }
+          darkMode={darkMode}
+          activeTab={activeMode}
+          onSelectTab={setActiveMode}
+          onToggleDarkMode={() => setDarkMode(!darkMode)}
+          onOpenHistory={() => setHistoryOpen(true)}
+          onOpenSTM={() => setSTMOpen(true)}
         />
 
         {/* CONTENT */}
 
         <div className="flex-1 overflow-y-auto">
 
-          <div className="max-w-2xl mx-auto px-6 py-8">
+          {activeMode === 'knowledge' ? (
+            <div className="p-6 h-full">
+              <KnowledgeAssistant darkMode={darkMode} />
+            </div>
+          ) : (
+            <div className="max-w-2xl mx-auto px-6 py-8">
 
-            {/* PAGE TITLE */}
+              {/* PAGE TITLE */}
 
-            <div className="mb-7">
+              <div className="mb-7">
 
-              <h2 className="text-xl font-bold tracking-tight">
-                {viewTitle}
-              </h2>
+                <h2 className="text-xl font-bold tracking-tight">
+                  {viewTitle}
+                </h2>
 
-              <p
-                className={`text-sm mt-1 ${
-                  darkMode
-                    ? 'text-zinc-500'
-                    : 'text-zinc-400'
-                }`}
-              >
-                {viewSub}
-              </p>
+                <p
+                  className={`text-sm mt-1 ${
+                    darkMode
+                      ? 'text-zinc-500'
+                      : 'text-zinc-400'
+                  }`}
+                >
+                  {viewSub}
+                </p>
+
+              </div>
+
+              {/* INPUT */}
+
+              {view ===
+                'input' && (
+                <IngestionForm
+                  darkMode={
+                    darkMode
+                  }
+
+                  onSubmit={
+                    handleSubmit
+                  }
+
+                  isDisabled={
+                    false
+                  }
+
+                  detectedLanguage={
+                    detectedLanguage
+                  }
+                />
+              )}
+
+              {/* PROCESSING */}
+
+              {view ===
+                'processing' &&
+                currentJob && (
+                  <JobProgress
+                    darkMode={
+                      darkMode
+                    }
+
+                    job={
+                      currentJob
+                    }
+
+                    onRetry={
+                      handleBack
+                    }
+
+                    onBack={
+                      handleBack
+                    }
+                  />
+                )}
+
+              {/* RESULT */}
+
+              {view ===
+                'result' &&
+                currentResult && (
+                  <ResultViewer
+                    darkMode={
+                      darkMode
+                    }
+
+                    result={
+                      currentResult
+                    }
+
+                    jobType={
+                      currentJobType
+                    }
+
+                    onBack={
+                      handleBack
+                    }
+
+                    originalVideoUrl={
+                      originalVideoUrl
+                    }
+                  />
+                )}
 
             </div>
-
-            {/* INPUT */}
-
-            {view ===
-              'input' && (
-              <IngestionForm
-                darkMode={
-                  darkMode
-                }
-
-                onSubmit={
-                  handleSubmit
-                }
-
-                isDisabled={
-                  false
-                }
-
-                detectedLanguage={
-                  detectedLanguage
-                }
-              />
-            )}
-
-            {/* PROCESSING */}
-
-            {view ===
-              'processing' &&
-              currentJob && (
-                <JobProgress
-                  darkMode={
-                    darkMode
-                  }
-
-                  job={
-                    currentJob
-                  }
-
-                  onRetry={
-                    handleBack
-                  }
-
-                  onBack={
-                    handleBack
-                  }
-                />
-              )}
-
-            {/* RESULT */}
-
-            {view ===
-              'result' &&
-              currentResult && (
-                <ResultViewer
-                  darkMode={
-                    darkMode
-                  }
-
-                  result={
-                    currentResult
-                  }
-
-                  jobType={
-                    currentJobType
-                  }
-
-                  onBack={
-                    handleBack
-                  }
-
-                  originalVideoUrl={
-                    originalVideoUrl
-                  }
-                />
-              )}
-
-          </div>
+          )}
 
         </div>
 

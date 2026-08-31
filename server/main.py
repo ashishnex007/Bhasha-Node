@@ -30,12 +30,13 @@ app.add_middleware(
 # ==========================================
 # MOUNT ROUTERS (before static files)
 # ==========================================
-from routers import jobs, history, stm, system
+from routers import jobs, history, stm, system, knowledge
 
 app.include_router(jobs.router)
 app.include_router(history.router)
 app.include_router(stm.router)
 app.include_router(system.router)
+app.include_router(knowledge.router)
 
 # ==========================================
 # INITIALIZE ML SERVICES ON STARTUP
@@ -58,33 +59,54 @@ def startup_event():
     from services.stm_engine import STMService
     from services.system_engine import SystemService
     from services.language_detection_engine import LanguageDetectionService
+    from services.knowledge_base import KnowledgeBase
+    from services.qwen_engine import QwenEngine
+    from services.rag_pipeline import RAGPipeline
     from task_queue.job_worker import worker
 
-    print("\n[1/6] Loading Translation Service (IndicTrans2 — en-indic + indic-en + indic-indic)...")
+    print("\n[1/7] Loading Translation Service (IndicTrans2 — en-indic + indic-en + indic-indic)...")
     translator = TranslationService()
 
-    print("[2/6] Loading TTS Service (Meta MMS VITS mar/hin)...")
+    print("[2/7] Loading TTS Service (Meta MMS VITS mar/hin)...")
     tts = TTSService()
 
-    print("[3/6] Loading ASR Service (Faster-Whisper INT8 Small)...")
+    print("[3/7] Loading ASR Service (Faster-Whisper INT8 Small)...")
     asr = ASRService()
 
-    print("[4/6] Loading STM (Word Dictionary) & System Telemetry...")
+    print("[4/7] Loading STM (Word Dictionary) & System Telemetry...")
     stm_service = STMService()
     system_service = SystemService()
 
-    print("[5/6] Loading Video Service (FFmpeg pipeline)...")
+    print("[5/7] Loading Video Service (FFmpeg pipeline)...")
     video_engine = VideoService(asr=asr, translator=translator, tts=tts, stm=stm_service)
 
-    print("[6/6] Loading OCR Service (Tesseract)...")
+    print("[6/7] Loading OCR Service (Tesseract)...")
     ocr_engine = OCRService()
 
     print("[7/7] Loading Language Detection Service (fastText LID)...")
     lang_detector = LanguageDetectionService()
 
+    print("[8/8] Initializing Agricultural Knowledge Assistant (FAISS & Lazy Qwen3-4B)...")
+    kb_service = KnowledgeBase()
+    qwen_service = QwenEngine()
+    rag_pipeline = RAGPipeline(
+        knowledge_base=kb_service,
+        qwen_engine=qwen_service,
+        translator=translator,
+        language_detector=lang_detector,
+        tts=tts,
+        stm=stm_service,
+    )
+
     # Register services with routers that need them
     stm.init(stm_service)
     system.init(system_service)
+    knowledge.init(
+        rag_pipeline=rag_pipeline,
+        kb=kb_service,
+        qwen=qwen_service,
+        tts=tts,
+    )
 
     # Register all services with the background job worker
     worker.register_services(
@@ -98,7 +120,7 @@ def startup_event():
     )
 
     print("\n" + "=" * 60)
-    print("  AI CORE READY — All models loaded into local memory")
+    print("  AI CORE READY — Multimodal Pipelines & Knowledge Base active")
     print("=" * 60 + "\n")
 
 

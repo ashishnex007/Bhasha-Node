@@ -180,3 +180,80 @@ export async function fetchSystemStats(): Promise<SystemStats> {
   if (!res.ok) throw new Error("Failed to fetch system stats");
   return res.json();
 }
+
+// ==========================================
+// KNOWLEDGE ASSISTANT (RAG)
+// ==========================================
+export interface KnowledgeSource {
+  id?: number;
+  source: string;
+  input_type: string;
+  content_type: string;
+  score: number;
+  text: string;
+  full_text?: string;
+}
+
+export interface AskKnowledgeResponse {
+  answer: string;
+  answer_en?: string;
+  detected_language: string;
+  sources: KnowledgeSource[];
+  audio_url?: string | null;
+  latency_sec: number;
+  model_used: string;
+}
+
+export interface KnowledgeStatusResponse {
+  indexed_chunks: number;
+  indexed_documents: number;
+  model_available: boolean;
+  model_loaded: boolean;
+  model_path: string;
+  is_ready: boolean;
+}
+
+export async function askKnowledge(
+  question: string,
+  history: { role: string; content: string }[] = [],
+  generateAudio = false
+): Promise<AskKnowledgeResponse> {
+  const res = await fetch(`${API_BASE}/api/knowledge/ask`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      question,
+      history,
+      generate_audio: generateAudio,
+    }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: "Failed to query Knowledge Assistant" }));
+    throw new Error(err.detail || "Failed to query Knowledge Assistant");
+  }
+  return res.json();
+}
+
+export async function rebuildKnowledgeIndex(): Promise<{ indexed_chunks: number; message: string }> {
+  const res = await fetch(`${API_BASE}/api/knowledge/rebuild`, {
+    method: "POST",
+  });
+  if (!res.ok) throw new Error("Failed to rebuild knowledge base index");
+  return res.json();
+}
+
+export async function fetchKnowledgeStatus(): Promise<KnowledgeStatusResponse> {
+  const res = await fetch(`${API_BASE}/api/knowledge/status`);
+  if (!res.ok) throw new Error("Failed to fetch knowledge status");
+  return res.json();
+}
+
+export async function synthesizeChatAudio(text: string, language: string): Promise<{ audio_url: string }> {
+  const res = await fetch(`${API_BASE}/api/knowledge/tts`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ text, language }),
+  });
+  if (!res.ok) throw new Error("Voice synthesis failed for chat message");
+  return res.json();
+}

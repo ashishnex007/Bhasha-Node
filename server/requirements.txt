@@ -15,3 +15,6 @@ Pillow
 pytesseract
 pdf2image
 fasttext-langdetect
+faiss-cpu
+sentence-transformers
+llama-cpp-python

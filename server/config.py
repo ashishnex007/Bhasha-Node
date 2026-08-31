@@ -67,3 +67,17 @@ TTS_MODELS = {
 MAX_UPLOAD_SIZE_MB = 500
 MAX_TEXT_LENGTH = 50000
 FFMPEG_AUDIO_PARAMS = ["-acodec", "pcm_s16le", "-ar", "16000", "-ac", "1"]
+
+# ==========================================
+# KNOWLEDGE ASSISTANT (Qwen3-4B RAG)
+# ==========================================
+QWEN_MODEL_PATH    = MODELS_DIR / "Qwen3-4B-Q4_K_M.gguf"
+QWEN_N_CTX         = 4096    # context window tokens
+QWEN_N_THREADS     = 4       # CPU inference threads
+QWEN_MAX_TOKENS    = 512     # max tokens in a single answer
+QWEN_TOP_K_CHUNKS  = 5       # FAISS retrieval depth
+
+KB_INDEX_PATH      = DATA_DIR / "kb.faiss"
+KB_META_PATH       = DATA_DIR / "kb_meta.json"
+EMBED_MODEL_NAME   = "sentence-transformers/all-MiniLM-L6-v2"
+EMBED_CACHE_DIR    = str(MODELS_DIR / "embeddings")   # local cache for the embedder
