@@ -42,6 +42,7 @@ BASE_URL = f"http://{SERVER_HOST}:{SERVER_PORT}"
 LANGUAGE_CONFIG = {
     "marathi": {"trans": "mar_Deva", "tts": "mar", "label": "मराठी"},
     "hindi":   {"trans": "hin_Deva", "tts": "hin", "label": "हिन्दी"},
+    "english": {"trans": "eng_Latn", "tts": None,  "label": "English"},
 }
 
 # ==========================================
@@ -51,8 +52,9 @@ ASR_MODEL_SIZE = "small"
 ASR_DEVICE = "cpu"
 ASR_COMPUTE_TYPE = "int8"
 
-TRANSLATION_MODEL = "ai4bharat/indictrans2-en-indic-dist-200M"
-TRANSLATION_MODEL_INDIC_INDIC = "ai4bharat/indictrans2-indic-indic-dist-200M"
+TRANSLATION_MODEL          = "ai4bharat/indictrans2-en-indic-dist-200M"
+TRANSLATION_MODEL_INDIC_EN = "ai4bharat/indictrans2-indic-en-dist-200M"
+TRANSLATION_MODEL_INDIC_INDIC = "ai4bharat/indictrans2-indic-indic-dist-320M"
 
 TTS_MODELS = {
     "mar": "facebook/mms-tts-mar",

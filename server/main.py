@@ -60,7 +60,7 @@ def startup_event():
     from services.language_detection_engine import LanguageDetectionService
     from task_queue.job_worker import worker
 
-    print("\n[1/6] Loading Translation Service (IndicTrans2 200M)...")
+    print("\n[1/6] Loading Translation Service (IndicTrans2 — en-indic + indic-en + indic-indic)...")
     translator = TranslationService()
 
     print("[2/6] Loading TTS Service (Meta MMS VITS mar/hin)...")

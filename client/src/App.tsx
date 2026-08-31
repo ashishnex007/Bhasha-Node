@@ -7,6 +7,7 @@ import {
 
 import Header from './components/Header';
 import TelemetryCard from './components/TelemetryCard';
+import ActivityLog from './components/ActivityLog';
 import IngestionForm from './components/IngestionForm';
 import JobProgress from './components/JobProgress';
 import ResultViewer from './components/ResultViewer';
@@ -330,6 +331,9 @@ export default function App() {
 
           created_at:
             new Date().toISOString(),
+
+          source_file_name:
+            payload.file?.name,
         });
 
         setView(
@@ -483,19 +487,24 @@ export default function App() {
 
         {/* TELEMETRY */}
 
-        <div className="p-4">
+        <div className="p-4 pb-2">
           <TelemetryCard
-            darkMode={
-              darkMode
-            }
-            stats={
-              stats
-            }
-            isLive={
-              serverLive
-            }
+            darkMode={darkMode}
+            stats={stats}
+            isLive={serverLive}
           />
         </div>
+
+        <div className={`mx-4 h-px ${darkMode ? 'bg-white/[0.04]' : 'bg-black/[0.04]'}`} />
+
+        {/* ACTIVITY LOG */}
+        <ActivityLog
+          darkMode={darkMode}
+          currentStage={currentJob?.stage}
+          jobStatus={currentJob?.status}
+          jobType={currentJob?.type}
+          targetLanguage={currentJob?.target_language}
+        />
 
       </aside>
 
@@ -595,6 +604,10 @@ export default function App() {
                   }
 
                   onRetry={
+                    handleBack
+                  }
+
+                  onBack={
                     handleBack
                   }
                 />

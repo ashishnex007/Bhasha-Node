@@ -16,6 +16,17 @@ from config import OUTPUT_DIR, LANGUAGE_CONFIG, FFMPEG_AUDIO_PARAMS, BASE_URL
 from db.database import db
 
 
+def _model_label(detected_src: str, tgt_lang_code: str) -> str:
+    """Return a short human-readable label for the model that will be used."""
+    if detected_src == "en":
+        return "IndicTrans2 EN→Indic 200M"
+    elif tgt_lang_code == "eng_Latn":
+        return "IndicTrans2 Indic→EN 200M"
+    else:
+        return "IndicTrans2 Indic→Indic 320M"
+
+
+
 class JobWorker:
     """
     Single background worker thread that pulls jobs from an in-memory
@@ -93,6 +104,8 @@ class JobWorker:
     # TEXT PIPELINE
     # ==========================================
     def _process_text(self, job_id: str, text: str, target_lang: str, config: dict):
+        import time as _time
+        t0 = _time.time()
         db.update_job_progress(job_id, 20, "Translating")
 
         # Detect source language before translation
@@ -102,34 +115,43 @@ class JobWorker:
             detected_lang = lang_detector.detect(text)
             print(f"[LID] Text job {job_id}: detected source language = '{detected_lang}'")
 
+        # Pick model label based on script
+        model_used = _model_label(detected_lang, config["trans"])
+
         # Translate the full text normally
         translated = self._services["translator"].translate(text, target_lang=config["trans"])
 
-        # Apply word dictionary corrections using the AI as an oracle for each matched term
+        # Apply word dictionary corrections
         translator_fn = lambda w: self._services["translator"].translate(w, target_lang=config["trans"])
         translated = self._services["stm"].apply_corrections(text, translated, target_lang, translator_fn)
 
         db.update_job_progress(job_id, 60, "Synthesizing Voice")
 
-        output_filename = f"output_{job_id}_{target_lang}.wav"
-        output_path = str(OUTPUT_DIR / output_filename)
-        self._services["tts"].generate_voice(translated, lang_code=config["tts"], output_file=output_path)
-
-        result = {
+        result: dict = {
             "status": "success",
             "original_text": text,
             "translated_text": translated,
-            "audio_url": f"{BASE_URL}/{output_filename}",
             "detected_source_language": detected_lang,
+            "model_used": model_used,
         }
+
+        if config["tts"]:
+            output_filename = f"output_{job_id}_{target_lang}.wav"
+            output_path = str(OUTPUT_DIR / output_filename)
+            self._services["tts"].generate_voice(translated, lang_code=config["tts"], output_file=output_path)
+            result["audio_url"] = f"{BASE_URL}/{output_filename}"
+
+        result["inference_time_sec"] = round(_time.time() - t0, 2)
         db.complete_job(job_id, result)
         db.save_inference(job_id, "text", text, translated, target_lang,
-                          audio_url=result["audio_url"])
+                          audio_url=result.get("audio_url"))
 
     # ==========================================
     # AUDIO PIPELINE
     # ==========================================
     def _process_audio(self, job_id: str, file_path: str, target_lang: str, config: dict):
+        import time as _time
+        t0 = _time.time()
         clean_audio = str(OUTPUT_DIR / f"clean_{job_id}.wav")
 
         try:
@@ -153,26 +175,33 @@ class JobWorker:
                 detected_lang = lang_detector.detect(english_text)
                 print(f"[LID] Audio job {job_id}: detected source language = '{detected_lang}'")
 
+            model_used = _model_label(detected_lang, config["trans"])
+
             db.update_job_progress(job_id, 55, "Translating")
             translated = self._services["translator"].translate(english_text, target_lang=config["trans"])
             translator_fn = lambda w: self._services["translator"].translate(w, target_lang=config["trans"])
             translated = self._services["stm"].apply_corrections(english_text, translated, target_lang, translator_fn)
 
             db.update_job_progress(job_id, 75, "Synthesizing Voice")
-            output_filename = f"output_audio_{job_id}_{target_lang}.wav"
-            output_path = str(OUTPUT_DIR / output_filename)
-            self._services["tts"].generate_voice(translated, lang_code=config["tts"], output_file=output_path)
 
-            result = {
+            result: dict = {
                 "status": "success",
                 "original_text": english_text,
                 "translated_text": translated,
-                "audio_url": f"{BASE_URL}/{output_filename}",
                 "detected_source_language": detected_lang,
+                "model_used": model_used,
             }
+
+            if config["tts"]:
+                output_filename = f"output_audio_{job_id}_{target_lang}.wav"
+                output_path = str(OUTPUT_DIR / output_filename)
+                self._services["tts"].generate_voice(translated, lang_code=config["tts"], output_file=output_path)
+                result["audio_url"] = f"{BASE_URL}/{output_filename}"
+
+            result["inference_time_sec"] = round(_time.time() - t0, 2)
             db.complete_job(job_id, result)
             db.save_inference(job_id, "audio", english_text, translated, target_lang,
-                              audio_url=result["audio_url"],
+                              audio_url=result.get("audio_url"),
                               file_name=os.path.basename(file_path))
         finally:
             for f in [file_path, clean_audio]:
@@ -183,33 +212,41 @@ class JobWorker:
     # VIDEO PIPELINE
     # ==========================================
     def _process_video(self, job_id: str, file_path: str, target_lang: str, config: dict):
+        import time as _time
+        t0 = _time.time()
         try:
             db.update_job_progress(job_id, 5, "Extracting Audio")
             result_filename, translated_script = self._services["video"].process_video(
                 input_video=file_path,
                 target_lang_code=config["trans"],
-                tts_lang_code=config["tts"],
+                tts_lang_code=config["tts"] or "",
                 progress_callback=lambda p, s: db.update_job_progress(job_id, p, s),
             )
-            # translated_script already has STM corrections applied by video_engine
 
-            # Detect language on the translated script (it's in Indic script so
-            # fastText will correctly identify the target script as hi/mr/en)
             detected_lang = "en"
             lang_detector = self._services.get("lang_detector")
             if lang_detector and translated_script:
                 detected_lang = lang_detector.detect(translated_script)
                 print(f"[LID] Video job {job_id}: detected output language = '{detected_lang}'")
 
-            result = {
+            model_used = _model_label("en", config["trans"])  # video always starts from EN audio
+
+            result: dict = {
                 "status": "success",
                 "translated_text": translated_script,
-                "video_url": f"{BASE_URL}/{result_filename}",
                 "detected_source_language": detected_lang,
+                "model_used": model_used,
             }
+
+            if config["tts"]:
+                result["video_url"] = f"{BASE_URL}/{result_filename}"
+            else:
+                result["video_url"] = None
+
+            result["inference_time_sec"] = round(_time.time() - t0, 2)
             db.complete_job(job_id, result)
             db.save_inference(job_id, "video", "", translated_script, target_lang,
-                              video_url=result["video_url"],
+                              video_url=result.get("video_url"),
                               file_name=os.path.basename(file_path))
         finally:
             if os.path.exists(file_path):
@@ -219,6 +256,8 @@ class JobWorker:
     # OCR PIPELINE
     # ==========================================
     def _process_ocr(self, job_id: str, file_path: str, target_lang: str, config: dict):
+        import time as _time
+        t0 = _time.time()
         try:
             db.update_job_progress(job_id, 10, "OCR Extraction")
             extracted_text = self._services["ocr"].extract(file_path, target_lang)
@@ -227,25 +266,39 @@ class JobWorker:
                 db.fail_job(job_id, "OCR extracted no readable text from the document.")
                 return
 
+            # Detect source language of extracted text
+            detected_lang = "en"
+            lang_detector = self._services.get("lang_detector")
+            if lang_detector:
+                detected_lang = lang_detector.detect(extracted_text)
+
+            model_used = _model_label(detected_lang, config["trans"])
+
             db.update_job_progress(job_id, 40, "Translating")
             translated = self._services["translator"].translate(extracted_text, target_lang=config["trans"])
             translator_fn = lambda w: self._services["translator"].translate(w, target_lang=config["trans"])
             translated = self._services["stm"].apply_corrections(extracted_text, translated, target_lang, translator_fn)
 
             db.update_job_progress(job_id, 70, "Synthesizing Voice")
-            output_filename = f"output_ocr_{job_id}_{target_lang}.wav"
-            output_path = str(OUTPUT_DIR / output_filename)
-            self._services["tts"].generate_voice(translated, lang_code=config["tts"], output_file=output_path)
 
-            result = {
+            result: dict = {
                 "status": "success",
                 "original_text": extracted_text,
                 "translated_text": translated,
-                "audio_url": f"{BASE_URL}/{output_filename}",
+                "detected_source_language": detected_lang,
+                "model_used": model_used,
             }
+
+            if config["tts"]:
+                output_filename = f"output_ocr_{job_id}_{target_lang}.wav"
+                output_path = str(OUTPUT_DIR / output_filename)
+                self._services["tts"].generate_voice(translated, lang_code=config["tts"], output_file=output_path)
+                result["audio_url"] = f"{BASE_URL}/{output_filename}"
+
+            result["inference_time_sec"] = round(_time.time() - t0, 2)
             db.complete_job(job_id, result)
             db.save_inference(job_id, "ocr", extracted_text, translated, target_lang,
-                              audio_url=result["audio_url"],
+                              audio_url=result.get("audio_url"),
                               file_name=os.path.basename(file_path))
         finally:
             if os.path.exists(file_path):

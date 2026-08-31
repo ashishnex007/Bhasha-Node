@@ -29,10 +29,29 @@ asr_model = WhisperModel("small", device="cpu", compute_type="int8")
 
 # Translation: IndicTrans2 (Distilled 200M version for CPU safety)
 print("[LOAD] Loading Translation Engine (IndicTrans2)...")
-trans_model_name = "ai4bharat/indictrans2-en-indic-dist-200M"
-# FIX: Removed force_download=True so it loads instantly from your local cache
-trans_tokenizer = AutoTokenizer.from_pretrained(trans_model_name, trust_remote_code=True)
-trans_model = AutoModelForSeq2SeqLM.from_pretrained(trans_model_name, trust_remote_code=True)
+
+MODELS = [
+    "ai4bharat/indictrans2-en-indic-dist-200M",
+    "ai4bharat/indictrans2-indic-en-dist-200M",
+    "ai4bharat/indictrans2-indic-indic-dist-320M",
+]
+
+for model_name in MODELS:
+    print(f"\n[DOWNLOAD] {model_name}")
+
+    AutoTokenizer.from_pretrained(
+        model_name,
+        trust_remote_code=True
+    )
+
+    AutoModelForSeq2SeqLM.from_pretrained(
+        model_name,
+        trust_remote_code=True
+    )
+
+    print(f"[DONE] {model_name}")
+
+print("\nAll 3 models downloaded/cached.")
 
 # TTS: Offline Marathi Voice
 print("[LOAD] Loading TTS (Marathi)...")

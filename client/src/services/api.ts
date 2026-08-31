@@ -25,6 +25,9 @@ export interface JobStatus {
   completed_at?: string;
   result?: PipelineResult;
   result_json?: string;
+  // client-side enrichment (set at submit time, not from server)
+  source_file_name?: string;
+  source_lang_hint?: string;
 }
 
 export interface PipelineResult {
@@ -34,6 +37,8 @@ export interface PipelineResult {
   audio_url?: string;
   video_url?: string;
   detected_source_language?: string;
+  inference_time_sec?: number;
+  model_used?: string;
 }
 
 export interface InferenceRecord {
