@@ -119,6 +119,9 @@ def startup_event():
         lang_detector=lang_detector,
     )
 
+    # Resume any jobs that were interrupted by a previous crash
+    # worker.resume_stuck_jobs()
+
     print("\n" + "=" * 60)
     print("  AI CORE READY — Multimodal Pipelines & Knowledge Base active")
     print("=" * 60 + "\n")

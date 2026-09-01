@@ -110,7 +110,7 @@ export default function Header({
                 : 'text-zinc-600 hover:text-zinc-900'
             }`}
           >
-            <Layers size={14} />
+            <Layers size={16} />
             Translation Studio
           </button>
 
@@ -124,7 +124,7 @@ export default function Header({
                 : 'text-zinc-600 hover:text-zinc-900'
             }`}
           >
-            <Sparkles size={14} className={activeTab === 'knowledge' ? 'text-amber-300' : 'text-emerald-400'} />
+            <Sparkles size={16} className={activeTab === 'knowledge' ? 'text-amber-300' : 'text-emerald-400'} />
             Knowledge Assistant
           </button>
         </div>
@@ -138,7 +138,7 @@ export default function Header({
           className={btn}
           id="btn-history"
         >
-          <Clock size={16} />
+          <Clock size={18} />
           {t('header.pastWork')}
         </button>
 
@@ -148,7 +148,7 @@ export default function Header({
           className={btn}
           id="btn-stm"
         >
-          <BookOpen size={16} />
+          <BookOpen size={18} />
           {t('header.wordList')}
         </button>
 
@@ -177,7 +177,7 @@ export default function Header({
             }`}
             title="Language"
           >
-            <Globe size={16} />
+            <Globe size={18} />
           </div>
 
           {languages.map((lang) => {
@@ -215,9 +215,9 @@ export default function Header({
           }`}
         >
           {darkMode ? (
-            <Sun size={18} />
+            <Sun size={19} />
           ) : (
-            <Moon size={18} />
+            <Moon size={19} />
           )}
         </button>
       </nav>

@@ -190,6 +190,20 @@ class Database:
             ).fetchall()
             return [dict(r) for r in rows]
 
+    # ==========================================
+    # CRASH RECOVERY
+    # ==========================================
+    def get_stuck_jobs(self) -> list[dict]:
+        """
+        Find jobs that are still 'processing' or 'queued' — these are
+        leftovers from a server crash and should be re-queued on startup.
+        """
+        with self._conn() as conn:
+            rows = conn.execute(
+                "SELECT job_id, type, target_language, status, stage FROM jobs WHERE status IN ('processing', 'queued')"
+            ).fetchall()
+            return [dict(r) for r in rows]
+
 
 # Singleton instance
 db = Database()

@@ -15,7 +15,6 @@ import {
   Loader2,
   Cpu,
   Timer,
-  Zap,
 } from 'lucide-react';
 
 import type { PipelineResult } from '../services/api';
@@ -309,7 +308,6 @@ function BlobDownloadBtn({
 export default function ResultViewer({
   darkMode,
   result,
-  jobType,
   onBack,
   originalVideoUrl,
 }: ResultViewerProps) {
@@ -387,7 +385,7 @@ export default function ResultViewer({
               : 'text-zinc-600 hover:text-zinc-900 hover:bg-black/[0.03]'
           }`}
         >
-          <ArrowLeft size={16} />
+          <ArrowLeft size={18} />
           {t(
             'result.translateAgain'
           )}
@@ -400,7 +398,7 @@ export default function ResultViewer({
               : 'text-emerald-600'
           }`}
         >
-          <CheckCircle size={15} />
+          <CheckCircle size={18} />
           {t(
             'result.doneOffline'
           )}
@@ -414,7 +412,7 @@ export default function ResultViewer({
         >
           <div className="p-5 pb-3">
             <span className={sectionLabel}>
-              <Video size={15} />
+              <Video size={18} />
               {t(
                 'result.translatedVideo'
               )}
@@ -425,7 +423,7 @@ export default function ResultViewer({
             <div className="grid grid-cols-2 gap-px bg-black/30">
               <div className="relative bg-black">
                 <div className="absolute top-3 left-3 z-10 flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold bg-black/70 text-white backdrop-blur-sm">
-                  <Video size={11} />
+                  <Video size={14} />
                   {t(
                     'result.original'
                   )}
@@ -443,7 +441,7 @@ export default function ResultViewer({
               <div className="relative bg-black">
                 <div className="absolute top-3 left-3 z-10 flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold bg-indigo-600/90 text-white backdrop-blur-sm">
                   <Languages
-                    size={11}
+                    size={14}
                   />
                   {t(
                     'result.translated'
@@ -479,7 +477,7 @@ export default function ResultViewer({
           className={`p-5 rounded-2xl border ${border} ${bg} animate-fadeUp`}
         >
           <span className={sectionLabel}>
-            <FileText size={15} />
+            <FileText size={18} />
             {t(
               'result.originalText'
             )}
@@ -503,7 +501,7 @@ export default function ResultViewer({
           className={`p-5 rounded-2xl border ${border} ${bg} animate-fadeUp`}
         >
           <span className={sectionLabel}>
-            <Languages size={15} />
+            <Languages size={18} />
             {t(
               'result.yourTranslation'
             )}
@@ -547,7 +545,7 @@ export default function ResultViewer({
                 {result.inference_time_sec !== undefined && (
                   <div>
                     <p className={`text-[9px] font-bold uppercase tracking-widest mb-0.5 ${muted}`}>
-                      <span className="flex items-center gap-1"><Timer size={9} /> Inference Time</span>
+                      <span className="flex items-center gap-1"><Timer size={12} /> Inference Time</span>
                     </p>
                     <p className={`text-xs font-semibold font-mono ${
                       darkMode ? 'text-zinc-300' : 'text-zinc-700'
@@ -561,7 +559,7 @@ export default function ResultViewer({
                 {result.model_used && (
                   <div className="col-span-2">
                     <p className={`text-[9px] font-bold uppercase tracking-widest mb-0.5 ${muted}`}>
-                      <span className="flex items-center gap-1"><Cpu size={9} /> Model</span>
+                      <span className="flex items-center gap-1"><Cpu size={12} /> Model</span>
                     </p>
                     <p className={`text-xs font-semibold ${
                       darkMode ? 'text-indigo-300' : 'text-indigo-600'
@@ -570,35 +568,6 @@ export default function ResultViewer({
                     </p>
                   </div>
                 )}
-
-                {/* Quality proxy: char ratio (Indic output is typically 0.6–1.4× input) */}
-                {result.original_text && result.translated_text && (() => {
-                  const ratio = result.translated_text.length / Math.max(result.original_text.length, 1);
-                  const confidence = ratio > 0.25 && ratio < 4
-                    ? Math.min(97, Math.round(88 + Math.random() * 8))
-                    : 71;
-                  const bar = Math.min(confidence, 100);
-                  const color = confidence >= 90 ? 'bg-emerald-500'
-                    : confidence >= 75 ? 'bg-amber-500' : 'bg-red-500';
-                  return (
-                    <div className="col-span-2">
-                      {/* <div className="flex items-center justify-between mb-1">
-                        <p className={`text-[9px] font-bold uppercase tracking-widest ${muted}`}>
-                          <span className="flex items-center gap-1"><Zap size={9} /> Source Confidence</span>
-                        </p>
-                        <span className={`text-[10px] font-bold font-mono ${
-                          confidence >= 90 ? 'text-emerald-500'
-                          : confidence >= 75 ? 'text-amber-500' : 'text-red-400'
-                        }`}>{confidence}%</span>
-                      </div> */}
-                      {/* <div className={`w-full rounded-full h-1.5 ${darkMode ? 'bg-white/[0.06]' : 'bg-black/[0.06]'}`}>
-                        <div className={`h-1.5 rounded-full transition-all duration-1000 ease-out ${color}`}
-                          style={{ width: `${bar}%` }} />
-                      </div> */}
-                    </div>
-                  );
-                })()}
-
               </div>
             </>
           )}
@@ -612,7 +581,7 @@ export default function ResultViewer({
         >
           <div className="flex items-center justify-between mb-3">
             <span className={sectionLabel}>
-              <Volume2 size={15} />
+              <Volume2 size={18} />
               {t(
                 'result.voiceOutput'
               )}
@@ -643,7 +612,7 @@ export default function ResultViewer({
           className={`p-5 rounded-2xl border ${border} ${bg} animate-fadeUp`}
         >
           <span className={sectionLabel}>
-            <FileDown size={15} />
+            <FileDown size={18} />
             {t(
               'result.saveDownload'
             )}

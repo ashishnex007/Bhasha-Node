@@ -1,4 +1,5 @@
 import os
+import re
 from dotenv import load_dotenv
 load_dotenv()   # loads .env
 
@@ -9,13 +10,13 @@ from huggingface_hub import login
 
 class TranslationService:
     def __init__(self):
-        print("[LOAD] Booting Translation Engine (IndicTrans2 — 3 models)...")
+        print("[LOAD] Booting Translation Engine (IndicTrans2 - 3 models)...")
         HF_TOKEN = os.getenv("HF_TOKEN")
         if not HF_TOKEN:
             raise RuntimeError("HF_TOKEN not found in environment")
         login(token=HF_TOKEN)
 
-        # ── Model 1: English → Indic  (loaded eagerly — most common direction) ──
+        # -- Model 1: English -> Indic  (loaded eagerly - most common direction) --
         self._en_indic_name = "ai4bharat/indictrans2-en-indic-dist-200M"
         self.tokenizer = AutoTokenizer.from_pretrained(
             self._en_indic_name, trust_remote_code=True
@@ -24,12 +25,12 @@ class TranslationService:
             self._en_indic_name, trust_remote_code=True
         )
 
-        # ── Model 2: Indic → English  (lazy-loaded on first use) ──
+        # -- Model 2: Indic -> English  (lazy-loaded on first use) --
         self._indic_en_name = "ai4bharat/indictrans2-indic-en-dist-200M"
         self._indic_en_tokenizer = None
         self._indic_en_model = None
 
-        # ── Model 3: Indic → Indic  (lazy-loaded on first use) ──
+        # -- Model 3: Indic -> Indic    (lazy-loaded on first use) --
         self._indic_indic_name = "ai4bharat/indictrans2-indic-indic-dist-320M"
         self._indic_indic_tokenizer = None
         self._indic_indic_model = None
@@ -41,33 +42,33 @@ class TranslationService:
     # ==========================================
 
     def _get_indic_en(self):
-        """Lazy-load the Indic→English model on first use."""
+        """Lazy-load the Indic->English model on first use."""
         if self._indic_en_model is None:
-            print("[LOAD] Loading Indic→English model (first use)...")
+            print("[LOAD] Loading Indic->English model (first use)...")
             self._indic_en_tokenizer = AutoTokenizer.from_pretrained(
                 self._indic_en_name, trust_remote_code=True
             )
             self._indic_en_model = AutoModelForSeq2SeqLM.from_pretrained(
                 self._indic_en_name, trust_remote_code=True
             )
-            print("[LOAD] Indic→English model loaded.")
+            print("[LOAD] Indic->English model loaded.")
         return self._indic_en_tokenizer, self._indic_en_model
 
     def _get_indic_indic(self):
-        """Lazy-load the Indic→Indic model on first use."""
+        """Lazy-load the Indic->Indic model on first use."""
         if self._indic_indic_model is None:
-            print("[LOAD] Loading Indic→Indic model (first use)...")
+            print("[LOAD] Loading Indic->Indic model (first use)...")
             self._indic_indic_tokenizer = AutoTokenizer.from_pretrained(
                 self._indic_indic_name, trust_remote_code=True
             )
             self._indic_indic_model = AutoModelForSeq2SeqLM.from_pretrained(
                 self._indic_indic_name, trust_remote_code=True
             )
-            print("[LOAD] Indic→Indic model loaded.")
+            print("[LOAD] Indic->Indic model loaded.")
         return self._indic_indic_tokenizer, self._indic_indic_model
 
     # ==========================================
-    # LANGUAGE DETECTION (script-based)
+    # LANGUAGE DETECTION (script-based & linguistic)
     # ==========================================
 
     @staticmethod
@@ -83,29 +84,50 @@ class TranslationService:
 
     def _detect_src_lang(self, text: str, target_lang: str) -> str:
         """
-        Determine source language code from the input script.
-
-        Rules:
-        - Devanagari source → infer Hindi or Marathi based on the target
-          (if target is Marathi/eng → assume Hindi; if target is Hindi → assume Marathi)
-        - Latin/other script → English
+        Determine source language code from the input script and linguistic markers.
+        Accurately differentiates Marathi (mar_Deva) from Hindi (hin_Deva).
         """
-        if self._is_devanagari(text):
-            # Source is definitely Indic; disambiguate Hindi vs Marathi by target
-            if target_lang == "mar_Deva":
-                return "hin_Deva"   # X → Marathi  implies source is Hindi
-            elif target_lang == "hin_Deva":
-                return "mar_Deva"   # X → Hindi    implies source is Marathi
-            # Target is English (eng_Latn): both Hindi and Marathi are valid sources.
-            # Default to Hindi as it is more widely encountered in this app.
+        if not self._is_devanagari(text):
+            return "eng_Latn"
+
+        # Distinct Marathi vs Hindi grammatical vocabulary
+        marathi_markers = {'आहे', 'नाही', 'होते', 'आणि', 'च्या', 'तील', 'वरून', 'झाले', 'केले', 'करावे', 'यांचे', 'त्यांचे', 'म्हणून', 'कसा', 'कशी', 'कसे', 'आहेत', 'करणे', 'पाहिजे', 'शेती', 'गाई', 'पाणी', 'दुग्ध', 'पिकांचे', 'रोगाचे'}
+        hindi_markers = {'है', 'हैं', 'नहीं', 'और', 'का', 'की', 'के', 'में', 'से', 'को', 'था', 'थी', 'थे', 'होगा', 'होगी', 'करना', 'चाहिए', 'किया', 'गया', 'इस', 'उस', 'पर', 'वाले', 'वाली'}
+
+        words = set(re.findall(r'[\u0900-\u097F]+', text))
+        mr_matches = len(words & marathi_markers)
+        hi_matches = len(words & hindi_markers)
+
+        if mr_matches > hi_matches:
+            return "mar_Deva"
+        elif hi_matches > mr_matches:
             return "hin_Deva"
-        return "eng_Latn"
+
+        # Fallback to fastText LID
+        try:
+            from ftlangdetect import detect
+            res = detect(text.replace("\n", " "))
+            lang = res.get("lang")
+            if lang == "mr":
+                return "mar_Deva"
+            elif lang == "hi":
+                return "hin_Deva"
+        except Exception:
+            pass
+
+        # Disambiguate by target
+        if target_lang == "mar_Deva":
+            return "hin_Deva"
+        elif target_lang == "hin_Deva":
+            return "mar_Deva"
+
+        return "mar_Deva" if mr_matches >= hi_matches else "hin_Deva"
 
     # ==========================================
     # PUBLIC TRANSLATE API
     # ==========================================
 
-    def translate(self, text: str, target_lang: str) -> str:
+    def translate(self, text: str, target_lang: str, src_lang: str | None = None) -> str:
         """
         Translate *text* to *target_lang*.
 
@@ -116,7 +138,7 @@ class TranslationService:
         """
         start_time = time.time()
         chunks = self._split_to_chunks(text)
-        translated_parts = [self._translate_one(c, target_lang) for c in chunks]
+        translated_parts = [self._translate_one(c, target_lang, src_lang=src_lang) for c in chunks]
         translation = " ".join(translated_parts)
         elapsed = time.time() - start_time
         print(
@@ -129,11 +151,11 @@ class TranslationService:
     # INTERNAL: MODEL ROUTING
     # ==========================================
 
-    def _translate_one(self, text: str, target_lang: str) -> str:
+    def _translate_one(self, text: str, target_lang: str, src_lang: str | None = None) -> str:
         """Translate a single chunk, routing to the correct model based on script."""
-        src_lang = self._detect_src_lang(text, target_lang)
+        resolved_src = src_lang or self._detect_src_lang(text, target_lang)
 
-        if src_lang == "eng_Latn":
+        if resolved_src == "eng_Latn":
             # English → Indic  (en-indic model, loaded at startup)
             tokenizer, model = self.tokenizer, self.model
         elif target_lang == "eng_Latn":
@@ -143,7 +165,7 @@ class TranslationService:
             # Indic → Indic   (indic-indic model)
             tokenizer, model = self._get_indic_indic()
 
-        formatted = f"{src_lang} {target_lang} {text}"
+        formatted = f"{resolved_src} {target_lang} {text}"
         inputs = tokenizer(
             formatted, return_tensors="pt", padding=True, truncation=True
         )

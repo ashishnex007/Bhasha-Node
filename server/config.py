@@ -42,7 +42,7 @@ BASE_URL = f"http://{SERVER_HOST}:{SERVER_PORT}"
 LANGUAGE_CONFIG = {
     "marathi": {"trans": "mar_Deva", "tts": "mar", "label": "मराठी"},
     "hindi":   {"trans": "hin_Deva", "tts": "hin", "label": "हिन्दी"},
-    "english": {"trans": "eng_Latn", "tts": None,  "label": "English"},
+    "english": {"trans": "eng_Latn", "tts": "eng", "label": "English"},
 }
 
 # ==========================================
@@ -59,6 +59,7 @@ TRANSLATION_MODEL_INDIC_INDIC = "ai4bharat/indictrans2-indic-indic-dist-320M"
 TTS_MODELS = {
     "mar": "facebook/mms-tts-mar",
     "hin": "facebook/mms-tts-hin",
+    "eng": "facebook/mms-tts-eng",
 }
 
 # ==========================================

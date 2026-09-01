@@ -9,7 +9,6 @@ import {
   Video,
   Image as ImageIcon,
   Languages,
-  Clock,
 } from 'lucide-react';
 
 import type { JobStatus } from '../services/api';
@@ -156,21 +155,21 @@ export default function JobProgress({
 
             {/* Type chip */}
             <span className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-[11px] font-semibold ${chipBg}`}>
-              {typeIcon(job.type, 11)}
+              {typeIcon(job.type, 14)}
               {job.type.charAt(0).toUpperCase() + job.type.slice(1)}
             </span>
 
             {/* Source file */}
             {job.source_file_name && (
               <span className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-[11px] font-semibold ${chipBg} max-w-[160px] truncate`}>
-                <FileText size={10} />
+                <FileText size={13} />
                 {job.source_file_name}
               </span>
             )}
 
             {/* Arrow */}
             <span className={`flex items-center px-1 text-xs ${muted}`}>
-              <Languages size={12} className="mr-1" />
+              <Languages size={14} className="mr-1" />
             </span>
 
             {/* Target language */}
@@ -196,7 +195,7 @@ export default function JobProgress({
                   : 'border-black/[0.07] text-zinc-600 hover:bg-black/[0.03]'
               }`}
             >
-              <ArrowLeft size={16} />
+              <ArrowLeft size={18} />
               Go Back
             </button>
           )}
@@ -205,7 +204,7 @@ export default function JobProgress({
               onClick={onRetry}
               className="flex-1 py-3 rounded-2xl text-sm font-bold flex items-center justify-center gap-2.5 bg-red-500/10 text-red-400 border border-red-500/20 hover:bg-red-500/20 hover:border-red-500/40 transition-all active:scale-[0.99]"
             >
-              <RotateCcw size={16} />
+              <RotateCcw size={18} />
               {t('job.tryAgain')}
             </button>
           )}

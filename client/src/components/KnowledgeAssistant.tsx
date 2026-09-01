@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
   Send,
   Mic,
@@ -15,10 +15,8 @@ import {
   Video,
   Music,
   CheckCircle2,
-  AlertCircle,
   Loader2,
   Clock,
-  Zap,
   Info,
   BookOpen,
   Brain,
@@ -34,7 +32,6 @@ import {
   type KnowledgeSource,
   type KnowledgeStatusResponse,
 } from '../services/api';
-import { useLanguage } from '../i18n/LanguageContext';
 
 export interface ChatMessage {
   id: string;
@@ -94,7 +91,6 @@ function parseThinkBlock(raw: string): { think: string | null; answer: string } 
 }
 
 export default function KnowledgeAssistant({ darkMode }: KnowledgeAssistantProps) {
-  const { t } = useLanguage();
 
   const [messages, setMessages] = useState<ChatMessage[]>(() => {
     const saved = localStorage.getItem('baif_chat_history');
@@ -400,7 +396,7 @@ export default function KnowledgeAssistant({ darkMode }: KnowledgeAssistantProps
 
           <div className="flex items-center gap-2.5">
             <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs ${border} ${darkMode ? 'bg-white/[0.02]' : 'bg-black/[0.02]'}`}>
-              <Database size={13} className="text-indigo-400" />
+              <Database size={16} className="text-indigo-400" />
               <span className="font-semibold">{status?.indexed_chunks ?? 0}</span>
               <span className={muted}>chunks</span>
             </div>
@@ -419,12 +415,12 @@ export default function KnowledgeAssistant({ darkMode }: KnowledgeAssistantProps
             >
               {isRebuilding ? (
                 <>
-                  <Loader2 size={13} className="animate-spin text-indigo-400" />
+                  <Loader2 size={15} className="animate-spin text-indigo-400" />
                   Indexing...
                 </>
               ) : (
                 <>
-                  <RotateCcw size={13} />
+                  <RotateCcw size={15} />
                   Re-index KB
                 </>
               )}
@@ -459,7 +455,7 @@ export default function KnowledgeAssistant({ darkMode }: KnowledgeAssistantProps
         {/* Rebuild Message feedback */}
         {rebuildMsg && (
           <div className="mt-2 text-xs font-medium text-emerald-400 flex items-center gap-1.5">
-            <CheckCircle2 size={13} />
+            <CheckCircle2 size={15} />
             {rebuildMsg}
           </div>
         )}
@@ -553,7 +549,7 @@ export default function KnowledgeAssistant({ darkMode }: KnowledgeAssistantProps
 
                         {msg.latency_sec !== undefined && (
                           <span className={`flex items-center gap-1 font-mono ${muted}`}>
-                            <Clock size={10} />
+                            <Clock size={13} />
                             {msg.latency_sec}s
                           </span>
                         )}
@@ -572,9 +568,9 @@ export default function KnowledgeAssistant({ darkMode }: KnowledgeAssistantProps
                             }`}
                           >
                             {isAudioLoading ? (
-                              <Loader2 size={11} className="animate-spin" />
+                              <Loader2 size={14} className="animate-spin" />
                             ) : (
-                              <Volume2 size={11} />
+                              <Volume2 size={14} />
                             )}
                             {isPlaying ? 'Pause Voice' : 'Listen Voice'}
                           </button>
@@ -595,13 +591,13 @@ export default function KnowledgeAssistant({ darkMode }: KnowledgeAssistantProps
                         }`}
                       >
                         <span className="flex items-center gap-1.5">
-                          <Brain size={13} />
+                          <Brain size={16} />
                           AI Reasoning Trace
                           <span className={`px-1.5 py-0.5 rounded-full text-[9px] font-bold ${
                             darkMode ? 'bg-violet-500/15 text-violet-400' : 'bg-violet-100 text-violet-600'
                           }`}>internal</span>
                         </span>
-                        {thinkExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                        {thinkExpanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
                       </button>
 
                       {thinkExpanded && (
@@ -626,10 +622,10 @@ export default function KnowledgeAssistant({ darkMode }: KnowledgeAssistantProps
                         className="w-full flex items-center justify-between text-xs font-semibold text-indigo-400 hover:text-indigo-300 transition-colors"
                       >
                         <span className="flex items-center gap-1.5">
-                          <BookOpen size={13} />
+                          <BookOpen size={16} />
                           Verified Grounded Sources ({msg.sources.length})
                         </span>
-                        {sourcesExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                        {sourcesExpanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
                       </button>
 
                       {sourcesExpanded && (
@@ -644,11 +640,11 @@ export default function KnowledgeAssistant({ darkMode }: KnowledgeAssistantProps
                               <div className="flex items-center justify-between mb-1 font-semibold">
                                 <span className="flex items-center gap-1.5 text-zinc-300 truncate max-w-[240px]">
                                   {src.input_type === 'video' ? (
-                                    <Video size={12} className="text-rose-400 shrink-0" />
+                                    <Video size={15} className="text-rose-400 shrink-0" />
                                   ) : src.input_type === 'audio' ? (
-                                    <Music size={12} className="text-amber-400 shrink-0" />
+                                    <Music size={15} className="text-amber-400 shrink-0" />
                                   ) : (
-                                    <FileText size={12} className="text-emerald-400 shrink-0" />
+                                    <FileText size={15} className="text-emerald-400 shrink-0" />
                                   )}
                                   {src.source}
                                 </span>
@@ -721,13 +717,13 @@ export default function KnowledgeAssistant({ darkMode }: KnowledgeAssistantProps
               onClick={stopRecording}
               className="px-4 py-2 rounded-xl bg-red-500 hover:bg-red-600 text-white font-bold text-xs flex items-center gap-2 transition-colors shadow-md"
             >
-              <Square size={12} fill="currentColor" />
+              <Square size={14} fill="currentColor" />
               Stop & Ask
             </button>
           </div>
         ) : isTranscribing ? (
           <div className="flex items-center justify-center gap-2.5 p-3 text-xs font-semibold text-indigo-400">
-            <Loader2 size={16} className="animate-spin" />
+            <Loader2 size={18} className="animate-spin" />
             Transcribing speech with Faster-Whisper...
           </div>
         ) : (
@@ -743,7 +739,7 @@ export default function KnowledgeAssistant({ darkMode }: KnowledgeAssistantProps
                   : 'hover:bg-amber-50 text-amber-600 hover:border-amber-300'
               }`}
             >
-              <Mic size={18} />
+              <Mic size={20} />
             </button>
 
             {/* Textarea Input */}
@@ -774,7 +770,7 @@ export default function KnowledgeAssistant({ darkMode }: KnowledgeAssistantProps
                   : 'bg-indigo-600 hover:bg-indigo-700 text-white shadow-md shadow-indigo-600/20 active:scale-95'
               }`}
             >
-              <Send size={18} />
+              <Send size={20} />
             </button>
           </div>
         )}

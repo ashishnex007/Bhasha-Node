@@ -5,6 +5,7 @@ Thread-safe lazy-loading on first use.
 Enforces strict agricultural grounding and prompt-injection defense.
 """
 import os
+import re
 import threading
 from typing import List, Dict, Any, Optional
 
@@ -145,8 +146,10 @@ class QwenEngine:
                 temperature=0.2,  # Low temperature for factual precision
                 top_p=0.9,
             )
-            answer = response["choices"][0]["message"]["content"].strip()
-            return answer
+            raw_answer = response["choices"][0]["message"]["content"].strip()
+            # Cleanly remove <think>...</think> scratchpad if present
+            clean_answer = re.sub(r'<think>[\s\S]*?</think>', '', raw_answer).strip()
+            return clean_answer if clean_answer else raw_answer
         except Exception as e:
             print(f"[QWEN] Error during inference: {e}")
             raise

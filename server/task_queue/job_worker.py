@@ -106,45 +106,48 @@ class JobWorker:
     def _process_text(self, job_id: str, text: str, target_lang: str, config: dict):
         import time as _time
         t0 = _time.time()
-        db.update_job_progress(job_id, 20, "Translating")
+        try:
+            db.update_job_progress(job_id, 20, "Translating Text")
 
-        # Detect source language before translation
-        detected_lang = "en"
-        lang_detector = self._services.get("lang_detector")
-        if lang_detector:
-            detected_lang = lang_detector.detect(text)
-            print(f"[LID] Text job {job_id}: detected source language = '{detected_lang}'")
+            # Detect language of source text using fastText
+            detected_lang = "en"
+            lang_detector = self._services.get("lang_detector")
+            if lang_detector:
+                detected_lang = lang_detector.detect(text)
+                print(f"[LID] Text job {job_id}: detected source language = '{detected_lang}'")
 
-        # Pick model label based on script
-        model_used = _model_label(detected_lang, config["trans"])
+            # Pick model label based on script
+            model_used = _model_label(detected_lang, config["trans"])
 
-        # Translate the full text normally
-        translated = self._services["translator"].translate(text, target_lang=config["trans"])
+            # Translate the full text normally
+            translated = self._services["translator"].translate(text, target_lang=config["trans"])
 
-        # Apply word dictionary corrections
-        translator_fn = lambda w: self._services["translator"].translate(w, target_lang=config["trans"])
-        translated = self._services["stm"].apply_corrections(text, translated, target_lang, translator_fn)
+            # Apply word dictionary corrections
+            translator_fn = lambda w: self._services["translator"].translate(w, target_lang=config["trans"])
+            translated = self._services["stm"].apply_corrections(text, translated, target_lang, translator_fn)
 
-        db.update_job_progress(job_id, 60, "Synthesizing Voice")
+            db.update_job_progress(job_id, 60, "Synthesizing Voice")
 
-        result: dict = {
-            "status": "success",
-            "original_text": text,
-            "translated_text": translated,
-            "detected_source_language": detected_lang,
-            "model_used": model_used,
-        }
+            result: dict = {
+                "status": "success",
+                "original_text": text,
+                "translated_text": translated,
+                "detected_source_language": detected_lang,
+                "model_used": model_used,
+            }
 
-        if config["tts"]:
-            output_filename = f"output_{job_id}_{target_lang}.wav"
-            output_path = str(OUTPUT_DIR / output_filename)
-            self._services["tts"].generate_voice(translated, lang_code=config["tts"], output_file=output_path)
-            result["audio_url"] = f"{BASE_URL}/{output_filename}"
+            if config["tts"]:
+                output_filename = f"output_{job_id}_{target_lang}.wav"
+                output_path = str(OUTPUT_DIR / output_filename)
+                self._services["tts"].generate_voice(translated, lang_code=config["tts"], output_file=output_path)
+                result["audio_url"] = f"{BASE_URL}/{output_filename}"
 
-        result["inference_time_sec"] = round(_time.time() - t0, 2)
-        db.complete_job(job_id, result)
-        db.save_inference(job_id, "text", text, translated, target_lang,
-                          audio_url=result.get("audio_url"))
+            result["inference_time_sec"] = round(_time.time() - t0, 2)
+            db.complete_job(job_id, result)
+            db.save_inference(job_id, "text", text, translated, target_lang,
+                              audio_url=result.get("audio_url"))
+        except Exception:
+            raise
 
     # ==========================================
     # AUDIO PIPELINE
@@ -216,41 +219,44 @@ class JobWorker:
         t0 = _time.time()
         try:
             db.update_job_progress(job_id, 5, "Extracting Audio")
-            result_filename, translated_script = self._services["video"].process_video(
+            result_filename, translated_script, original_text = self._services["video"].process_video(
                 input_video=file_path,
                 target_lang_code=config["trans"],
                 tts_lang_code=config["tts"] or "",
                 progress_callback=lambda p, s: db.update_job_progress(job_id, p, s),
+                job_id=job_id,
             )
 
-            detected_lang = "en"
+            # Detect source language from the original transcribed audio segments
+            detected_lang = "mr"
             lang_detector = self._services.get("lang_detector")
-            if lang_detector and translated_script:
-                detected_lang = lang_detector.detect(translated_script)
-                print(f"[LID] Video job {job_id}: detected output language = '{detected_lang}'")
+            if lang_detector and original_text:
+                detected_lang = lang_detector.detect(original_text)
+                print(f"[LID] Video job {job_id}: detected source language = '{detected_lang}'")
 
-            model_used = _model_label("en", config["trans"])  # video always starts from EN audio
+            model_used = _model_label(detected_lang, config["trans"])
 
             result: dict = {
                 "status": "success",
+                "original_text": original_text,
                 "translated_text": translated_script,
+                "video_url": f"{BASE_URL}/{result_filename}",
                 "detected_source_language": detected_lang,
                 "model_used": model_used,
             }
 
-            if config["tts"]:
-                result["video_url"] = f"{BASE_URL}/{result_filename}"
-            else:
-                result["video_url"] = None
-
             result["inference_time_sec"] = round(_time.time() - t0, 2)
             db.complete_job(job_id, result)
-            db.save_inference(job_id, "video", "", translated_script, target_lang,
-                              video_url=result.get("video_url"),
+            db.save_inference(job_id, "video", original_text, translated_script, target_lang,
+                              video_url=result["video_url"],
                               file_name=os.path.basename(file_path))
-        finally:
+
+            # Only delete input file on successful completion
             if os.path.exists(file_path):
                 os.remove(file_path)
+        except Exception:
+            # On failure, preserve input file for potential resume
+            raise
 
     # ==========================================
     # OCR PIPELINE
@@ -303,6 +309,43 @@ class JobWorker:
         finally:
             if os.path.exists(file_path):
                 os.remove(file_path)
+
+    # ==========================================
+    # RESUME STUCK JOBS (crash recovery)
+    # ==========================================
+    def resume_stuck_jobs(self):
+        """
+        Find jobs that are still 'processing' (leftover from a server crash)
+        and re-enqueue them. Called once at server startup.
+        """
+        stuck_jobs = db.get_stuck_jobs()
+        if not stuck_jobs:
+            return
+
+        print(f"[QUEUE] Found {len(stuck_jobs)} stuck job(s) from previous crash — re-queuing...")
+        for job in stuck_jobs:
+            job_id = job["job_id"]
+            job_type = job["type"]
+            target_lang = job["target_language"]
+
+            # For video jobs, the input file may still exist
+            # The layer cache will let it resume from where it left off
+            file_path = ""
+            if job_type in ("video", "audio", "ocr"):
+                # Try to find the original input file in outputs/
+                for f in os.listdir(str(OUTPUT_DIR)):
+                    if f.startswith(f"temp_input_{job_id}_"):
+                        file_path = str(OUTPUT_DIR / f)
+                        break
+
+                if not file_path:
+                    print(f"[QUEUE] Job {job_id} ({job_type}): input file missing, marking failed.")
+                    db.fail_job(job_id, "Input file lost during crash — cannot resume.")
+                    continue
+
+            print(f"[QUEUE] Re-queuing {job_type} job {job_id} → {target_lang}")
+            db.update_job_progress(job_id, 0, "Re-queued (resuming)")
+            self.submit(job_id, job_type, target_lang, file_path=file_path)
 
 
 # Singleton instance

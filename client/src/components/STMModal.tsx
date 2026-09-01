@@ -1,4 +1,4 @@
-import React, {
+import {
   useState,
   useEffect,
 } from 'react';
@@ -291,11 +291,11 @@ export default function STMModal({
             {toast.type ===
             'ok' ? (
               <CheckCircle
-                size={16}
+                size={18}
               />
             ) : (
               <AlertCircle
-                size={16}
+                size={18}
               />
             )}
 
@@ -591,7 +591,7 @@ export default function STMModal({
                     )}
                   >
                     <Trash2
-                      size={15}
+                      size={17}
                     />
                   </button>
                 </div>

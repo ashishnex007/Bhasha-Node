@@ -477,7 +477,7 @@ export default function IngestionForm({
             />
 
             <UploadCloud
-              size={44}
+              size={48}
               className={`mb-4 ${
                 isDragging
                   ? 'text-indigo-500'
@@ -498,7 +498,7 @@ export default function IngestionForm({
             <div className="flex items-center gap-3 mt-5 flex-wrap justify-center">
               {[
                 {
-                  icon: <FileText size={16} />,
+                  icon: <FileText size={18} />,
                   label: t(
                     'ingestion.text'
                   ),
@@ -507,7 +507,7 @@ export default function IngestionForm({
                 },
                 {
                   icon: (
-                    <ImageIcon size={16} />
+                    <ImageIcon size={18} />
                   ),
                   label: t(
                     'ingestion.pdfImage'
@@ -516,7 +516,7 @@ export default function IngestionForm({
                     'text-emerald-500 bg-emerald-500/10',
                 },
                 {
-                  icon: <Mic size={16} />,
+                  icon: <Mic size={18} />,
                   label: t(
                     'ingestion.audio'
                   ),
@@ -524,7 +524,7 @@ export default function IngestionForm({
                     'text-amber-500 bg-amber-500/10',
                 },
                 {
-                  icon: <Video size={16} />,
+                  icon: <Video size={18} />,
                   label: t(
                     'ingestion.video'
                   ),
@@ -603,7 +603,7 @@ export default function IngestionForm({
                   className="px-6 py-3 rounded-2xl text-sm font-bold bg-red-500 text-white flex items-center gap-2.5 hover:bg-red-600 transition-colors shadow-md"
                 >
                   <Square
-                    size={14}
+                    size={16}
                     fill="currentColor"
                   />
                   {t(
@@ -757,7 +757,7 @@ export default function IngestionForm({
                     : 'bg-indigo-50 text-indigo-600 border border-indigo-200'
                 }`}
               >
-                <Languages size={13} />
+                <Languages size={16} />
 
                 {t(
                   'ingestion.detectedSource'
@@ -843,7 +843,7 @@ export default function IngestionForm({
                         {targetLang ===
                           key && (
                           <CheckCircle
-                            size={18}
+                            size={20}
                             className="opacity-80"
                           />
                         )}
@@ -879,7 +879,7 @@ export default function IngestionForm({
                 : 'bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg shadow-indigo-600/25 active:scale-[0.99]'
             }`}
           >
-            <Send size={18} />
+            <Send size={20} />
             {t(
               'ingestion.startTranslation'
             )}

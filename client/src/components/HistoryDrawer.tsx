@@ -337,12 +337,12 @@ export default function HistoryDrawer({
                     )}
                   >
                     <Trash2
-                      size={15}
+                      size={17}
                     />
                   </button>
 
                   <ChevronRight
-                    size={16}
+                    size={18}
                     className={muted}
                   />
                 </div>

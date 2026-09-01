@@ -39,7 +39,6 @@ type AppView = 'input' | 'processing' | 'result';
 export default function App() {
   const {
     t,
-    hasSelectedLanguage,
   } = useLanguage();
 
   // ==========================================

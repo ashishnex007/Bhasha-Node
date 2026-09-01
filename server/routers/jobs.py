@@ -6,6 +6,7 @@ import os
 import shutil
 from fastapi import APIRouter, UploadFile, File, Form
 from pydantic import BaseModel
+from typing import Optional
 
 from config import OUTPUT_DIR, LANGUAGE_CONFIG
 from db.database import db

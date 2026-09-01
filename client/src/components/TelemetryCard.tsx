@@ -1,4 +1,4 @@
-import { Cpu, MemoryStick, HardDrive, Wifi, WifiOff } from 'lucide-react';
+import { Cpu, MemoryStick, HardDrive, WifiOff } from 'lucide-react';
 import type { SystemStats } from '../services/api';
 
 interface TelemetryCardProps {
@@ -49,13 +49,14 @@ export default function TelemetryCard({ darkMode, stats, isLive }: TelemetryCard
           <span className={`flex items-center gap-1 text-[9px] font-semibold ${
             darkMode ? 'text-zinc-600' : 'text-zinc-400'
           }`}>
-            <WifiOff size={9} /> OFFLINE
+            <WifiOff size={11} /> OFFLINE
           </span>
         )}
       </div>
-      <Metric label="CPU" icon={<Cpu size={11} />} value={stats.cpu_percent} total={100} unit="%" percent={stats.cpu_percent} darkMode={darkMode} />
-      <Metric label="Memory" icon={<MemoryStick size={11} />} value={stats.ram_used_gb} total={stats.ram_total_gb} unit=" GB" percent={stats.ram_percent} darkMode={darkMode} />
-      <Metric label="Disk" icon={<HardDrive size={11} />} value={stats.disk_used_gb} total={stats.disk_total_gb} unit=" GB" percent={stats.disk_percent} darkMode={darkMode} />
+      <Metric label="CPU" icon={<Cpu size={14} />} value={stats.cpu_percent} total={100} unit="%" percent={stats.cpu_percent} darkMode={darkMode} />
+      <Metric label="Memory" icon={<MemoryStick size={14} />} value={stats.ram_used_gb} total={stats.ram_total_gb} unit=" GB" percent={stats.ram_percent} darkMode={darkMode} />
+      <Metric label="Disk" icon={<HardDrive size={14} />} value={stats.disk_used_gb} total={stats.disk_total_gb} unit=" GB" percent={stats.disk_percent} darkMode={darkMode} />
     </div>
   );
 }
+
