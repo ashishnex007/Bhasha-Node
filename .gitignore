@@ -4,3 +4,5 @@ server/models/*.bin
 /installer/release/
 /installer/release-final/
 /server/outputs/
+installer.zip
+*.zip

@@ -24,22 +24,72 @@ try {
     if (-not (Test-Path -LiteralPath (Join-Path $root 'client\dist\index.html'))) { throw 'The frontend build is missing.' }
     $env:BHASHA_DATA_DIR = $dataRoot
     $env:BHASHA_INSTALLED = '1'
-    $env:HF_HOME = Join-Path $serverDir 'models\huggingface'
+
+    # Locate Hugging Face model cache (production installed bundle, local bundle, or user cache)
+    $hfCandidates = @(
+        (Join-Path $serverDir 'models\huggingface'),
+        (Join-Path $root 'installer\bundle\server\models\huggingface'),
+        (Join-Path $env:USERPROFILE '.cache\huggingface')
+    )
+    foreach ($cand in $hfCandidates) {
+        if (Test-Path -LiteralPath (Join-Path $cand 'hub\models--ai4bharat--indictrans2-en-indic-dist-200M')) {
+            $env:HF_HOME = $cand
+            break
+        }
+    }
+
     $env:HF_HUB_OFFLINE = '1'
     $env:TRANSFORMERS_OFFLINE = '1'
     $env:HF_DATASETS_OFFLINE = '1'
     $env:PYTHONUTF8 = '1'
     $env:PYTHONIOENCODING = 'utf-8'
-    $env:TESSDATA_PREFIX = Join-Path $root 'tools\tesseract\tessdata'
 
-    $seed = Join-Path $root 'seed-data'
+    # Locate Tesseract OCR data
+    $tessCandidates = @(
+        (Join-Path $root 'tools\tesseract\tessdata'),
+        (Join-Path $root 'installer\bundle\tools\tesseract\tessdata'),
+        'C:\Program Files\Tesseract-OCR\tessdata'
+    )
+    foreach ($cand in $tessCandidates) {
+        if (Test-Path -LiteralPath $cand) {
+            $env:TESSDATA_PREFIX = $cand
+            break
+        }
+    }
+
+    # Add tool directories to PATH if present
+    $toolDirs = @(
+        (Join-Path $root 'tools\ffmpeg\bin'),
+        (Join-Path $root 'tools\poppler\bin'),
+        (Join-Path $root 'tools\tesseract'),
+        (Join-Path $root 'installer\bundle\tools\ffmpeg\bin'),
+        (Join-Path $root 'installer\bundle\tools\poppler\bin'),
+        (Join-Path $root 'installer\bundle\tools\tesseract')
+    )
+    foreach ($td in $toolDirs) {
+        if (Test-Path -LiteralPath $td) {
+            $env:PATH = "$td;$env:PATH"
+        }
+    }
+
+    $seedCandidates = @(
+        (Join-Path $root 'seed-data'),
+        (Join-Path $root 'installer\bundle\seed-data'),
+        (Join-Path $serverDir 'data')
+    )
+    $seed = $null
+    foreach ($cand in $seedCandidates) {
+        if (Test-Path -LiteralPath $cand) { $seed = $cand; break }
+    }
     $userData = Join-Path $dataRoot 'data'
     New-Item -ItemType Directory -Path $userData -Force | Out-Null
-    foreach ($name in @('kb.faiss', 'kb_meta.json')) {
-        $destination = Join-Path $userData $name
-        $source = Join-Path $seed $name
-        if (-not (Test-Path -LiteralPath $destination) -and (Test-Path -LiteralPath $source)) {
-            Copy-Item -LiteralPath $source -Destination $destination
+    if ($seed) {
+        foreach ($name in @('kb.faiss', 'kb_meta.json')) {
+            $destination = Join-Path $userData $name
+            $source = Join-Path $seed $name
+            if (-not (Test-Path -LiteralPath $destination) -and (Test-Path -LiteralPath $source)) {
+                Copy-Item -LiteralPath $source -Destination $destination
+            }
         }
     }
     if (Test-Path -LiteralPath (Join-Path $root 'runtime\python.exe')) {
