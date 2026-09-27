@@ -18,3 +18,4 @@ fasttext-langdetect
 faiss-cpu
 sentence-transformers
 llama-cpp-python
+unbabel-comet

@@ -25,6 +25,7 @@ import {
   submitOCRJob,
   pollJob,
   fetchSystemStats,
+  fetchCapabilities,
 } from './services/api';
 
 import type {
@@ -32,6 +33,7 @@ import type {
   PipelineResult,
   SystemStats,
   InferenceRecord,
+  LanguageCapability,
 } from './services/api';
 
 type AppView = 'input' | 'processing' | 'result';
@@ -62,9 +64,10 @@ export default function App() {
 
   const [detectedLanguage, setDetectedLanguage] =
     useState<string | undefined>(undefined);
+  const [capabilities, setCapabilities] = useState<LanguageCapability[]>([]);
 
-  const [originalVideoUrl, setOriginalVideoUrl] =
-    useState<string | undefined>(undefined);
+  useEffect(() => { fetchCapabilities().then(setCapabilities).catch(() => {}); }, []);
+
 
   const pollRef =
     useRef<ReturnType<typeof setInterval> | null>(null);
@@ -82,6 +85,7 @@ export default function App() {
   const [langSelectorOpen, setLangSelectorOpen] =
   useState(() => {
     return (
+      !new URLSearchParams(window.location.search).has('job') &&
       localStorage.getItem(
         'bhasha_language_selected'
       ) !== 'true'
@@ -231,6 +235,25 @@ export default function App() {
     };
   }, []);
 
+  useEffect(() => {
+    const jobId = new URLSearchParams(window.location.search).get('job');
+    if (!jobId) return;
+    let active = true;
+    pollJob(jobId).then((job) => {
+      if (!active) return;
+      setCurrentJob(job);
+      setCurrentJobType(job.type);
+      if (job.status === 'complete' && job.result) {
+        setCurrentResult(job.result);
+        setView('result');
+      } else if (job.status === 'queued' || job.status === 'processing') {
+        setView('processing');
+        startPolling(jobId);
+      }
+    }).catch(() => {});
+    return () => { active = false; };
+  }, [startPolling]);
+
   // ==========================================
   // JOB SUBMISSION
   // ==========================================
@@ -241,15 +264,12 @@ export default function App() {
       file: File | null;
       rawText: string;
       targetLanguage: string;
-      originalVideoUrl?: string;
+      sourceLanguage?: string;
     }) => {
       if (!payload.type) {
         return;
       }
 
-      setOriginalVideoUrl(
-        payload.originalVideoUrl
-      );
 
       try {
         let response;
@@ -263,6 +283,7 @@ export default function App() {
             await submitTextJob(
               payload.rawText,
               payload.targetLanguage
+              , payload.sourceLanguage
             );
         }
 
@@ -275,7 +296,8 @@ export default function App() {
           response =
             await submitAudioJob(
               payload.file,
-              payload.targetLanguage
+              payload.targetLanguage,
+              payload.sourceLanguage
             );
         }
 
@@ -288,7 +310,8 @@ export default function App() {
           response =
             await submitVideoJob(
               payload.file,
-              payload.targetLanguage
+              payload.targetLanguage,
+              payload.sourceLanguage
             );
         }
 
@@ -301,7 +324,8 @@ export default function App() {
           response =
             await submitOCRJob(
               payload.file,
-              payload.targetLanguage
+              payload.targetLanguage,
+              payload.sourceLanguage
             );
         }
 
@@ -345,6 +369,7 @@ export default function App() {
         startPolling(
           response.job_id
         );
+        window.history.replaceState(null, '', `?job=${encodeURIComponent(response.job_id)}`);
       } catch (e: any) {
         alert(
           `Could not start translation: ${
@@ -359,15 +384,13 @@ export default function App() {
   // ==========================================
 
   const handleBack = () => {
+    window.history.replaceState(null, '', window.location.pathname);
     setView('input');
 
     setCurrentJob(null);
 
     setCurrentResult(null);
 
-    setOriginalVideoUrl(
-      undefined
-    );
 
     setDetectedLanguage(
       undefined
@@ -378,34 +401,20 @@ export default function App() {
   // HISTORY
   // ==========================================
 
-  const handleHistorySelect = (
+  const handleHistorySelect = async (
     rec: InferenceRecord
   ) => {
     setHistoryOpen(false);
-
-    setCurrentResult({
-      status: 'success',
-
-      original_text:
-        rec.original_text,
-
-      translated_text:
-        rec.translated_text,
-
-      audio_url:
-        rec.audio_url ||
-        undefined,
-
-      video_url:
-        rec.video_url ||
-        undefined,
-    });
-
-    setCurrentJobType(
-      rec.input_type
-    );
-
-    setView('result');
+    try {
+      const job = await pollJob(rec.job_id);
+      setCurrentJob(job);
+      setCurrentResult(job.result || null);
+      setCurrentJobType(job.type);
+      setView('result');
+      window.history.replaceState(null, '', `?job=${encodeURIComponent(job.job_id)}`);
+    } catch {
+      alert('This saved result is no longer available.');
+    }
   };
 
   // ==========================================
@@ -536,7 +545,7 @@ export default function App() {
               <KnowledgeAssistant darkMode={darkMode} />
             </div>
           ) : (
-            <div className="max-w-2xl mx-auto px-6 py-8">
+            <div className={`${view === 'result' ? 'max-w-5xl' : 'max-w-2xl'} mx-auto px-6 py-8`}>
 
               {/* PAGE TITLE */}
 
@@ -578,6 +587,7 @@ export default function App() {
                   detectedLanguage={
                     detectedLanguage
                   }
+                  capabilities={capabilities}
                 />
               )}
 
@@ -627,9 +637,8 @@ export default function App() {
                       handleBack
                     }
 
-                    originalVideoUrl={
-                      originalVideoUrl
-                    }
+                    job={currentJob}
+                    capabilities={capabilities}
                   />
                 )}
 

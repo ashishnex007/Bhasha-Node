@@ -24,6 +24,7 @@ from typing import Optional, Callable, List, Tuple
 from services.asr_engine import ASRService
 from services.translation_engine import TranslationService
 from services.tts_engine import TTSService
+from config import OUTPUT_DIR, FFMPEG_BIN, LANGUAGE_CONFIG
 
 
 # ── Sentence splitter for chunked TTS ────────────────────────────
@@ -83,6 +84,7 @@ class VideoService:
         tts_lang_code: str,
         progress_callback: Optional[Callable] = None,
         job_id: str = "",
+        source_language: str = "",
     ) -> Tuple[str, str]:
         """
         Full video pipeline with layer caching.
@@ -96,7 +98,7 @@ class VideoService:
                 progress_callback(percent, stage)
 
         # ── Set up paths ──────────────────────────────────────────
-        out_dir = Path("outputs")
+        out_dir = OUTPUT_DIR
         out_dir.mkdir(exist_ok=True)
 
         # Per-job cache directory for resumability
@@ -121,11 +123,11 @@ class VideoService:
                 print("[L1/6] Extracting audio footprint...")
                 _progress(10, "Extracting Audio")
                 subprocess.run([
-                    "ffmpeg", "-y", "-i", input_video, "-vn",
+                    FFMPEG_BIN, "-y", "-i", input_video, "-vn",
                     "-acodec", "pcm_s16le", "-ar", "16000", "-ac", "1",
                     l1_audio,
                 ], check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-                print(f"[L1] Audio extracted → {l1_audio}")
+                print(f"[L1] Audio extracted -> {l1_audio}")
 
             # ── L2: Transcribe with Whisper ───────────────────────
             # L2 cache stores both segments and the detected language tag
@@ -134,15 +136,15 @@ class VideoService:
                 print("[L2] CACHED — Skipping transcription.")
                 with open(l2_segments, "r", encoding="utf-8") as f:
                     segments = json.load(f)
-                with open(l2_lang_cache, "r") as f:
+                with open(l2_lang_cache, "r", encoding="utf-8") as f:
                     whisper_lang = f.read().strip()  # e.g. 'mr', 'hi', 'en'
             else:
                 print("[L2/6] Transcribing with Faster-Whisper...")
                 _progress(25, "Transcribing (Whisper)")
-                segments, whisper_lang = self.asr.transcribe_with_timestamps(l1_audio)
+                segments, whisper_lang = self.asr.transcribe_with_timestamps(l1_audio, language=source_language or None)
                 with open(l2_segments, "w", encoding="utf-8") as f:
                     json.dump(segments, f, ensure_ascii=False, indent=2)
-                with open(l2_lang_cache, "w") as f:
+                with open(l2_lang_cache, "w", encoding="utf-8") as f:
                     f.write(whisper_lang)
                 print(f"[L2] Transcription cached ({len(segments)} segments, lang='{whisper_lang}') -> {l2_segments}")
 
@@ -156,23 +158,16 @@ class VideoService:
                 _progress(45, "Translating & Building SRT")
 
                 # Map from IndicTrans2 code → DB language key
-                _trans_to_db = {"mar_Deva": "marathi", "hin_Deva": "hindi", "eng_Latn": "english"}
+                _trans_to_db = {entry["trans"]: key for key, entry in LANGUAGE_CONFIG.items()}
                 stm_db_key = _trans_to_db.get(target_lang_code, target_lang_code)
 
                 # Use Whisper's own detected language as authoritative source tag.
                 # This avoids text-based detection breaking when Whisper
                 # hallucinates a different script (e.g. Kannada for Marathi audio).
-                _WHISPER_TO_FLORES = {
-                    "mr": "mar_Deva",
-                    "hi": "hin_Deva",
-                    "en": "eng_Latn",
-                }
-                video_src_lang = _WHISPER_TO_FLORES.get(whisper_lang)
+                _WHISPER_TO_FLORES = {entry["iso"]: entry["trans"] for entry in LANGUAGE_CONFIG.values()}
+                video_src_lang = _WHISPER_TO_FLORES.get(source_language or whisper_lang)
                 if not video_src_lang:
-                    # Fallback to text-based detection for unsupported codes
-                    combined_orig_sample = " ".join([s.get("text", "") for s in segments[:10]])
-                    video_src_lang = self.translator._detect_src_lang(combined_orig_sample, target_lang_code)
-                    print(f"[L3] Whisper lang '{whisper_lang}' not mapped, text-detected: '{video_src_lang}'")
+                    raise ValueError(f"Detected source language '{whisper_lang}' is not supported. Choose a supported source language.")
                 else:
                     print(f"[L3] Whisper source language: '{whisper_lang}' -> FLORES tag: '{video_src_lang}' -> target '{target_lang_code}'")
 
@@ -202,7 +197,7 @@ class VideoService:
                     f.write(srt_content)
                 with open(l3_translations, "w", encoding="utf-8") as f:
                     json.dump(full_translated_text, f, ensure_ascii=False, indent=2)
-                print(f"[L3] SRT + translations cached → {l3_srt}")
+                print(f"[L3] SRT + translations cached -> {l3_srt}")
 
             combined_translation = " ".join(full_translated_text)
 
@@ -231,12 +226,15 @@ class VideoService:
             if os.path.exists(output_video):
                 os.remove(output_video)
 
-            safe_srt_path = l3_srt.replace("\\", "/")
+            # The subtitles filter treats a Windows drive colon as an option
+            # separator. Run FFmpeg from the output directory and use a
+            # controlled relative path instead of a drive-qualified filename.
+            safe_srt_path = Path(l3_srt).relative_to(out_dir).as_posix()
 
             if tts_success and os.path.exists(l4_tts):
                 # Full remux: subtitles + new voiceover
                 subprocess.run([
-                    "ffmpeg", "-y",
+                    FFMPEG_BIN, "-y",
                     "-i", input_video,
                     "-i", l4_tts,
                     "-vf", f"subtitles={safe_srt_path}",
@@ -247,29 +245,42 @@ class VideoService:
                     "-map", "1:a:0",
                     "-shortest",
                     output_video,
-                ], check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                ], check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                    cwd=str(out_dir))
             else:
                 # Fallback: subtitles only (no voiceover)
                 print("[L5] No TTS audio — producing subtitled video only.")
                 subprocess.run([
-                    "ffmpeg", "-y",
+                    FFMPEG_BIN, "-y",
                     "-i", input_video,
                     "-vf", f"subtitles={safe_srt_path}",
                     "-c:v", "libx264",
                     "-preset", "veryfast",
                     "-c:a", "copy",
                     output_video,
-                ], check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                ], check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                    cwd=str(out_dir))
 
             _progress(95, "Finalizing")
             elapsed = time.time() - start_time
             print(f"--- VIDEO PIPELINE COMPLETE in {elapsed:.2f}s ---")
 
-            # Clean up cache dir on success (artifacts are in outputs/)
+            # The source and subtitle stay with the persisted job result.
+            if job_id and os.path.exists(l3_srt):
+                job_dir = out_dir / job_id
+                job_dir.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(l3_srt, job_dir / "subtitles.srt")
+                subtitle_text = (job_dir / "subtitles.srt").read_text(encoding="utf-8")
+                vtt_text = "WEBVTT\n\n" + re.sub(
+                    r"(\d{2}:\d{2}:\d{2}),(\d{3})", r"\1.\2", subtitle_text
+                )
+                (job_dir / "subtitles.vtt").write_text(vtt_text, encoding="utf-8")
+
+            # Clean up intermediate cache only after preserving the subtitle.
             self._cleanup_cache(cache_dir)
 
             original_text = " ".join([s.get("text", "") for s in segments])
-            return output_filename, combined_translation, original_text
+            return output_filename, combined_translation, original_text, whisper_lang
 
         except Exception as e:
             # On failure, cache is preserved for resumability
@@ -336,7 +347,7 @@ class VideoService:
         # (e.g. MMS-TTS mar=16kHz, eng=16kHz) merge cleanly.
         concat_abs = os.path.abspath(concat_list_path).replace("\\", "/")
         result = subprocess.run([
-            "ffmpeg", "-y", "-f", "concat", "-safe", "0",
+            FFMPEG_BIN, "-y", "-f", "concat", "-safe", "0",
             "-i", concat_abs,
             "-ar", "22050", "-ac", "1", "-sample_fmt", "s16",
             output_path,

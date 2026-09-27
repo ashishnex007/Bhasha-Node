@@ -13,6 +13,17 @@ export interface JobSubmitResponse {
   status: string;
 }
 
+export interface LanguageCapability {
+  key: string;
+  name: string;
+  native_name: string;
+  translation_code: string;
+  iso: string;
+  translation: boolean;
+  tts: boolean;
+  ocr: boolean;
+}
+
 export interface JobStatus {
   job_id: string;
   type: string;
@@ -25,6 +36,9 @@ export interface JobStatus {
   completed_at?: string;
   result?: PipelineResult;
   result_json?: string;
+  source_language?: string;
+  source_filename?: string;
+  source_media_path?: string;
   // client-side enrichment (set at submit time, not from server)
   source_file_name?: string;
   source_lang_hint?: string;
@@ -36,6 +50,12 @@ export interface PipelineResult {
   translated_text?: string;
   audio_url?: string;
   video_url?: string;
+  source_url?: string;
+  subtitle_url?: string;
+  subtitle_vtt_url?: string;
+  page_count?: number;
+  quality_score?: number;
+  quality_metric?: string;
   detected_source_language?: string;
   inference_time_sec?: number;
   model_used?: string;
@@ -81,37 +101,54 @@ export interface SystemStats {
 // ==========================================
 // JOB SUBMISSION
 // ==========================================
-export async function submitTextJob(text: string, targetLanguage: string): Promise<JobSubmitResponse> {
+export async function submitTextJob(text: string, targetLanguage: string, sourceLanguage = ""): Promise<JobSubmitResponse> {
   const res = await fetch(`${API_BASE}/api/jobs/submit/text`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ text, target_language: targetLanguage }),
+    body: JSON.stringify({ text, target_language: targetLanguage, source_language: sourceLanguage }),
   });
   if (!res.ok) throw new Error("Failed to submit text job");
   return res.json();
 }
 
-export async function submitAudioJob(file: File, targetLanguage: string): Promise<JobSubmitResponse> {
+export async function fetchCapabilities(): Promise<LanguageCapability[]> {
+  const res = await fetch(`${API_BASE}/api/capabilities`);
+  if (!res.ok) throw new Error("Capabilities are unavailable");
+  return (await res.json()).languages;
+}
+
+export async function detectLanguage(text: string): Promise<{ language: string; score: number | null; available: boolean; supported: boolean }> {
+  const res = await fetch(`${API_BASE}/api/languages/detect`, {
+    method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text }),
+  });
+  if (!res.ok) throw new Error("Language detection is unavailable");
+  return res.json();
+}
+
+export async function submitAudioJob(file: File, targetLanguage: string, sourceLanguage = ""): Promise<JobSubmitResponse> {
   const fd = new FormData();
   fd.append("target_language", targetLanguage);
+  fd.append("source_language", sourceLanguage);
   fd.append("audio_file", file);
   const res = await fetch(`${API_BASE}/api/jobs/submit/audio`, { method: "POST", body: fd });
   if (!res.ok) throw new Error("Failed to submit audio job");
   return res.json();
 }
 
-export async function submitVideoJob(file: File, targetLanguage: string): Promise<JobSubmitResponse> {
+export async function submitVideoJob(file: File, targetLanguage: string, sourceLanguage = ""): Promise<JobSubmitResponse> {
   const fd = new FormData();
   fd.append("target_language", targetLanguage);
+  fd.append("source_language", sourceLanguage);
   fd.append("video_file", file);
   const res = await fetch(`${API_BASE}/api/jobs/submit/video`, { method: "POST", body: fd });
   if (!res.ok) throw new Error("Failed to submit video job");
   return res.json();
 }
 
-export async function submitOCRJob(file: File, targetLanguage: string): Promise<JobSubmitResponse> {
+export async function submitOCRJob(file: File, targetLanguage: string, sourceLanguage = ""): Promise<JobSubmitResponse> {
   const fd = new FormData();
   fd.append("target_language", targetLanguage);
+  fd.append("source_language", sourceLanguage);
   fd.append("ocr_file", file);
   const res = await fetch(`${API_BASE}/api/jobs/submit/ocr`, { method: "POST", body: fd });
   if (!res.ok) throw new Error("Failed to submit OCR job");
@@ -124,6 +161,24 @@ export async function submitOCRJob(file: File, targetLanguage: string): Promise<
 export async function pollJob(jobId: string): Promise<JobStatus> {
   const res = await fetch(`${API_BASE}/api/jobs/${jobId}`);
   if (!res.ok) throw new Error("Failed to fetch job status");
+  return res.json();
+}
+
+export async function fetchJobs(limit = 50): Promise<{ items: JobStatus[] }> {
+  const res = await fetch(`${API_BASE}/api/jobs?limit=${limit}`);
+  if (!res.ok) throw new Error("Failed to fetch saved jobs");
+  return res.json();
+}
+
+export async function evaluateJob(jobId: string, referenceText: string): Promise<PipelineResult> {
+  const res = await fetch(`${API_BASE}/api/jobs/${encodeURIComponent(jobId)}/evaluate`, {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ reference_text: referenceText }),
+  });
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({}));
+    throw new Error(error.detail || "Local quality evaluation is unavailable");
+  }
   return res.json();
 }
 

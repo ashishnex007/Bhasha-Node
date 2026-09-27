@@ -14,14 +14,14 @@ class ASRService:
         print("[LOAD] Booting ASR Engine (Faster-Whisper INT8)...")
         self.model = WhisperModel("small", device="cpu", compute_type="int8")
 
-    def transcribe(self, audio_path: str) -> str:
+    def transcribe(self, audio_path: str, language: str | None = None) -> str:
         start_time = time.time()
-        segments, info = self.model.transcribe(audio_path, beam_size=5)
+        segments, info = self.model.transcribe(audio_path, beam_size=5, language=language)
         transcription = " ".join([segment.text for segment in segments])
         print(f"[SUCCESS] Transcription completed in {time.time() - start_time:.2f}s")
         return transcription
 
-    def transcribe_with_timestamps(self, audio_path: str):
+    def transcribe_with_timestamps(self, audio_path: str, language: str | None = None):
         """
         Returns (segments, whisper_lang_code) where:
           - segments: list of {start, end, text}
@@ -33,7 +33,7 @@ class ASRService:
         # VAD filter prevents hallucinating text on silent audio segments
         # language=None lets Whisper auto-detect; we capture info.language
         segments_iter, info = self.model.transcribe(
-            audio_path, beam_size=5, vad_filter=True
+            audio_path, beam_size=5, vad_filter=True, language=language
         )
 
         results = []

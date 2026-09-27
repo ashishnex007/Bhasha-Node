@@ -1,2 +1,6 @@
 
 server/models/*.bin
+/installer/bundle/
+/installer/release/
+/installer/release-final/
+/server/outputs/

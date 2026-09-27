@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 
 import { useLanguage } from '../i18n/LanguageContext';
+import { detectLanguage, type LanguageCapability } from '../services/api';
 
 type FileCategory =
   | 'text'
@@ -34,11 +35,12 @@ interface IngestionFormProps {
     file: File | null;
     rawText: string;
     targetLanguage: string;
-    originalVideoUrl?: string;
+    sourceLanguage?: string;
   }) => void;
 
   isDisabled: boolean;
   detectedLanguage?: string;
+  capabilities: LanguageCapability[];
 }
 
 export default function IngestionForm({
@@ -46,6 +48,7 @@ export default function IngestionForm({
   onSubmit,
   isDisabled,
   detectedLanguage,
+  capabilities,
 }: IngestionFormProps) {
   const { t } = useLanguage();
 
@@ -66,75 +69,28 @@ export default function IngestionForm({
 
   const [liveDetectedLang, setLiveDetectedLang] =
     useState<string | undefined>(undefined);
+  const [sourceOverride, setSourceOverride] = useState('');
+  const [detectionUnavailable, setDetectionUnavailable] = useState(false);
 
-  const [
-    originalVideoObjectUrl,
-    setOriginalVideoObjectUrl,
-  ] = useState<string | undefined>(undefined);
 
   const [
     audioPreviewUrl,
     setAudioPreviewUrl,
   ] = useState<string | undefined>(undefined);
 
-  const localDetect = (
-    text: string
-  ): string | undefined => {
-    if (!text || text.trim().length < 3)
-      return undefined;
-
-    const devanagariCount = (
-      text.match(/[\u0900-\u097F]/g) || []
-    ).length;
-
-    const totalChars = text.replace(
-      /\s/g,
-      ''
-    ).length;
-
-    if (totalChars === 0) return undefined;
-
-    const devanagariRatio =
-      devanagariCount / totalChars;
-
-    if (devanagariRatio < 0.3)
-      return 'en';
-
-    const marathiPatterns =
-      /आहे|च्या|\sला\s|\sने\s|ची\s|चे\s|\sते\s|आणि|होते|नाही/;
-
-    const hindiPatterns =
-      /\sहै\s|\sहैं|\sका\s|\sकी\s|\sके\s|\sमें\s|\sसे\s|\sको\s|था\s|\sथी\s|होना/;
-
-    const marathiScore = (
-      text.match(marathiPatterns) || []
-    ).length;
-
-    const hindiScore = (
-      text.match(hindiPatterns) || []
-    ).length;
-
-    if (marathiScore > hindiScore)
-      return 'mr';
-
-    if (hindiScore > marathiScore)
-      return 'hi';
-
-    return 'mr';
-  };
-
   const effectiveLang =
-    liveDetectedLang ?? detectedLanguage;
+    sourceOverride || liveDetectedLang || detectedLanguage;
 
   useEffect(() => {
-    if (effectiveLang === 'hi') {
-      setTargetLang('marathi');
-    } else if (effectiveLang === 'mr') {
-      setTargetLang('hindi');
-    } else {
-      setTargetLang('marathi');
-    }
-  }, [effectiveLang]);
+    if (rawText.trim().length < 12) return;
+    let active = true;
+    const timer = setTimeout(() => {
+      detectLanguage(rawText).then(result => {
+        if (active) { setLiveDetectedLang(result.language); setDetectionUnavailable(!result.available); }
+      }).catch(() => { if (active) setDetectionUnavailable(true); });
+    }, 450);
+    return () => { active = false; clearTimeout(timer); };
+  }, [rawText]);
 
   const [isRecording, setIsRecording] =
     useState(false);
@@ -207,23 +163,12 @@ export default function IngestionForm({
           e.target?.result as string;
 
         setRawText(text);
-        setLiveDetectedLang(
-          localDetect(text)
-        );
+        setLiveDetectedLang(undefined);
       };
 
       reader.readAsText(f);
     }
 
-    if (cat === 'video') {
-      const url = URL.createObjectURL(f);
-
-      setOriginalVideoObjectUrl(url);
-    } else {
-      setOriginalVideoObjectUrl(
-        undefined
-      );
-    }
   };
 
   const handleDrop = (
@@ -369,17 +314,11 @@ export default function IngestionForm({
       file,
       rawText,
       targetLanguage: targetLang,
-      originalVideoUrl:
-        originalVideoObjectUrl,
+      sourceLanguage: sourceOverride,
     });
   };
 
   const clearPayload = () => {
-    if (originalVideoObjectUrl) {
-      URL.revokeObjectURL(
-        originalVideoObjectUrl
-      );
-    }
 
     if (audioPreviewUrl) {
       URL.revokeObjectURL(
@@ -391,10 +330,8 @@ export default function IngestionForm({
     setFileCategory(null);
     setRawText('');
     setRecordSeconds(0);
-    setOriginalVideoObjectUrl(
-      undefined
-    );
     setLiveDetectedLang(undefined);
+    setSourceOverride('');
     setAudioPreviewUrl(undefined);
   };
 
@@ -646,11 +583,7 @@ export default function IngestionForm({
             value={rawText}
             onChange={(e) => {
               setRawText(e.target.value);
-              setLiveDetectedLang(
-                localDetect(
-                  e.target.value
-                )
-              );
+              setLiveDetectedLang(undefined);
             }}
             placeholder={t(
               'ingestion.placeholder'
@@ -749,7 +682,7 @@ export default function IngestionForm({
               )}
             </label>
 
-            {effectiveLang && (
+            {(effectiveLang || rawText.trim()) && (
               <div
                 className={`flex items-center gap-2 mb-3 px-3 py-2 rounded-xl text-xs font-semibold w-fit ${
                   darkMode
@@ -763,41 +696,20 @@ export default function IngestionForm({
                   'ingestion.detectedSource'
                 )}{' '}
 
-                {effectiveLang === 'hi'
-                  ? 'Hindi हिन्दी'
-                  : effectiveLang === 'mr'
-                  ? 'Marathi मराठी'
-                  : 'English'}
+                {capabilities.find(lang => lang.iso === effectiveLang)?.name || (detectionUnavailable ? 'Unavailable — choose source' : 'Detecting…')}
               </div>
             )}
 
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-              {([
-                {
-                  key: 'marathi',
-                  script: 'मराठी',
-                  native: 'Marathi',
-                  srcCode: 'mr',
-                },
-                {
-                  key: 'hindi',
-                  script: 'हिन्दी',
-                  native: 'Hindi',
-                  srcCode: 'hi',
-                },
-                {
-                  key: 'english',
-                  script: 'English',
-                  native: 'English',
-                  srcCode: 'en',
-                },
-              ] as const).map(
-                ({
-                  key,
-                  script,
-                  native,
-                  srcCode,
-                }) => {
+            <label className={`block text-xs mb-3 ${muted}`}>Source language override
+              <select className={`block mt-1 rounded-xl p-2 border w-full ${darkMode ? 'bg-[#111118] border-white/[0.08]' : 'bg-white border-black/[0.08]'}`} value={sourceOverride} onChange={event => setSourceOverride(event.target.value)}>
+                <option value="">Auto detect</option>
+                {capabilities.filter(lang => lang.translation && (fileCategory !== 'ocr' || lang.ocr)).map(lang => <option key={lang.key} value={lang.iso}>{lang.name}</option>)}
+              </select>
+            </label>
+
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 max-h-64 overflow-y-auto custom-scrollbar">
+              {capabilities.filter(lang => lang.translation && (!['audio', 'video'].includes(fileCategory || '') || lang.tts)).map(
+                ({key, native_name: script, name: native, iso: srcCode, tts}) => {
                   const isSourceLang =
                     effectiveLang ===
                     srcCode;
@@ -858,6 +770,7 @@ export default function IngestionForm({
                       >
                         {script}
                       </span>
+                      {!tts && <span className="block text-[10px] mt-1 opacity-70">No voice output</span>}
                     </button>
                   );
                 }
@@ -867,7 +780,7 @@ export default function IngestionForm({
 
           <button
             onClick={handleSubmit}
-            disabled={isDisabled}
+            disabled={isDisabled || !capabilities.length || effectiveLang === capabilities.find(lang => lang.key === targetLang)?.iso}
             id="btn-submit"
             className={`w-full py-4 rounded-2xl text-base font-bold flex items-center justify-center gap-3 transition-all ${
               isDisabled

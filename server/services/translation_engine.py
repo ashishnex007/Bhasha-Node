@@ -4,25 +4,22 @@ from dotenv import load_dotenv
 load_dotenv()   # loads .env
 
 import time
+import gc
+import threading
 import torch
 from transformers import AutoModelForSeq2SeqLM, AutoTokenizer
-from huggingface_hub import login
 
 class TranslationService:
     def __init__(self):
         print("[LOAD] Booting Translation Engine (IndicTrans2 - 3 models)...")
-        HF_TOKEN = os.getenv("HF_TOKEN")
-        if not HF_TOKEN:
-            raise RuntimeError("HF_TOKEN not found in environment")
-        login(token=HF_TOKEN)
-
+        self._lock = threading.RLock()
         # -- Model 1: English -> Indic  (loaded eagerly - most common direction) --
         self._en_indic_name = "ai4bharat/indictrans2-en-indic-dist-200M"
         self.tokenizer = AutoTokenizer.from_pretrained(
-            self._en_indic_name, trust_remote_code=True
+            self._en_indic_name, trust_remote_code=True, local_files_only=True
         )
         self.model = AutoModelForSeq2SeqLM.from_pretrained(
-            self._en_indic_name, trust_remote_code=True
+            self._en_indic_name, trust_remote_code=True, local_files_only=True
         )
 
         # -- Model 2: Indic -> English  (lazy-loaded on first use) --
@@ -44,12 +41,13 @@ class TranslationService:
     def _get_indic_en(self):
         """Lazy-load the Indic->English model on first use."""
         if self._indic_en_model is None:
+            self._release_models(except_direction="indic_en")
             print("[LOAD] Loading Indic->English model (first use)...")
             self._indic_en_tokenizer = AutoTokenizer.from_pretrained(
-                self._indic_en_name, trust_remote_code=True
+                self._indic_en_name, trust_remote_code=True, local_files_only=True
             )
             self._indic_en_model = AutoModelForSeq2SeqLM.from_pretrained(
-                self._indic_en_name, trust_remote_code=True
+                self._indic_en_name, trust_remote_code=True, local_files_only=True
             )
             print("[LOAD] Indic->English model loaded.")
         return self._indic_en_tokenizer, self._indic_en_model
@@ -57,15 +55,37 @@ class TranslationService:
     def _get_indic_indic(self):
         """Lazy-load the Indic->Indic model on first use."""
         if self._indic_indic_model is None:
+            self._release_models(except_direction="indic_indic")
             print("[LOAD] Loading Indic->Indic model (first use)...")
             self._indic_indic_tokenizer = AutoTokenizer.from_pretrained(
-                self._indic_indic_name, trust_remote_code=True
+                self._indic_indic_name, trust_remote_code=True, local_files_only=True
             )
             self._indic_indic_model = AutoModelForSeq2SeqLM.from_pretrained(
-                self._indic_indic_name, trust_remote_code=True
+                self._indic_indic_name, trust_remote_code=True, local_files_only=True
             )
             print("[LOAD] Indic->Indic model loaded.")
         return self._indic_indic_tokenizer, self._indic_indic_model
+
+    def _get_en_indic(self):
+        if self.model is None:
+            self._release_models(except_direction="en_indic")
+            self.tokenizer = AutoTokenizer.from_pretrained(
+                self._en_indic_name, trust_remote_code=True, local_files_only=True)
+            self.model = AutoModelForSeq2SeqLM.from_pretrained(
+                self._en_indic_name, trust_remote_code=True, local_files_only=True)
+        return self.tokenizer, self.model
+
+    def _release_models(self, except_direction: str):
+        if except_direction != "en_indic":
+            self.model = None
+            self.tokenizer = None
+        if except_direction != "indic_en":
+            self._indic_en_model = None
+            self._indic_en_tokenizer = None
+        if except_direction != "indic_indic":
+            self._indic_indic_model = None
+            self._indic_indic_tokenizer = None
+        gc.collect()
 
     # ==========================================
     # LANGUAGE DETECTION (script-based & linguistic)
@@ -105,9 +125,8 @@ class TranslationService:
 
         # Fallback to fastText LID
         try:
-            from ftlangdetect import detect
-            res = detect(text.replace("\n", " "))
-            lang = res.get("lang")
+            from services.language_detection_engine import detect_local
+            lang = detect_local(text)["language"]
             if lang == "mr":
                 return "mar_Deva"
             elif lang == "hi":
@@ -138,7 +157,8 @@ class TranslationService:
         """
         start_time = time.time()
         chunks = self._split_to_chunks(text)
-        translated_parts = [self._translate_one(c, target_lang, src_lang=src_lang) for c in chunks]
+        with self._lock:
+            translated_parts = [self._translate_one(c, target_lang, src_lang=src_lang) for c in chunks]
         translation = " ".join(translated_parts)
         elapsed = time.time() - start_time
         print(
@@ -157,7 +177,7 @@ class TranslationService:
 
         if resolved_src == "eng_Latn":
             # English → Indic  (en-indic model, loaded at startup)
-            tokenizer, model = self.tokenizer, self.model
+            tokenizer, model = self._get_en_indic()
         elif target_lang == "eng_Latn":
             # Indic → English  (indic-en model)
             tokenizer, model = self._get_indic_en()

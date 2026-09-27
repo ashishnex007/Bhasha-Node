@@ -1,46 +1,26 @@
 # Bhasha Node finals implementation notes
 
-## Repository audit
+## Baseline audit
 
-- Frontend: React/Vite application in `client/src/App.tsx`; existing upload, result, history, knowledge, telemetry, and translation-memory components were present. The earlier result screen used an in-memory object URL for the original video.
-- API: FastAPI routers under `server/routers/` expose jobs, inference history, translation memory, system telemetry, and knowledge Q&A. Static output files are served locally by `server/main.py`.
-- Processing: `server/task_queue/job_worker.py` runs a single worker thread. Text, audio, OCR, and video use FastText, IndicTrans2, STM corrections, and optional MMS TTS. Video uses FFmpeg, Faster-Whisper, subtitles, and a per-job intermediate cache. Qwen is used only by the knowledge router.
-- Persistence: `server/db/database.py` already held SQLite jobs with `result_json`, inference history, and STM terms. Jobs lacked durable source media and source-language metadata; audio, OCR, and video jobs deleted their upload after success. History reconstructed an incomplete result from the inference table.
-- Output naming: old files mostly included an eight-character job token, but lived together at the output root. Video SRT lived in an intermediate directory that was removed after success.
-- Launch: the old launcher required a fixed checkout path, a venv, Node, and the Vite development server. OCR and FFmpeg paths were hardcoded or resolved through PATH.
-- Tests: no automated tests covered job migration, persistent media, or job retrieval.
+The existing application uses React/Vite/Tailwind, FastAPI, a single background worker, SQLite jobs and inference history, IndicTrans2, Faster-Whisper, Tesseract/Poppler, MMS TTS, FFmpeg, FastText, FAISS/Sentence-Transformers, and lazy Qwen for knowledge-base answers. The baseline deleted successful uploads and relied on a browser object URL for original video, so media vanished when a result was reopened. Baseline frontend build and persistence tests failed; startup also attempted Hugging Face login despite local models.
 
-## Implemented
+## Changes
 
-- The existing jobs table is migrated in place with source filename/path/type, source language, source text for restart recovery, and update time. New jobs use UUIDs. Uploads use controlled filenames under `outputs/<job_id>/` and are retained for later review.
-- The video worker moves the translated video into its job directory and preserves `.srt` and `.vtt` before deleting intermediates. The saved job holds source and output URLs, language, status, text, and subtitle URLs. Audio and OCR keep their original files too.
-- `GET /api/jobs/{job_id}` now provides a complete result. `GET /api/jobs` lists saved jobs. `DELETE /api/jobs/{job_id}` removes completed or failed jobs and per-job files. `POST /api/jobs/{job_id}/retry` creates a new job from saved source content. `PATCH /api/jobs/{job_id}/result` saves a human correction. Existing submission and inference-history routes remain.
-- `GET /api/capabilities` exposes translation, TTS, and OCR support from the Python language registry; `POST /api/languages/detect` exposes local FastText output. The UI obtains its language choices from this API. Only the three configured languages are advertised.
-- FastText now loads the bundled `server/models/lid.176.bin` directly; language detection no longer invokes a package path that can download a missing model. The offline installer bundles and validates the model.
-- The home screen presents text, document, audio, and video tasks. The result component displays source and target side by side, including local PDF/image/audio/video previews. History opens the full job. Job IDs in the URL restore results after reload and browser restart. System telemetry and model details are on the System page.
-- Optional reference-based IndicCOMET evaluation has a separate local process and a configurable process-tree memory guard (16 GiB by default, adjustable through `BHASHA_QUALITY_MEMORY_LIMIT_GB`). It persists a score only on success and keeps the completed translation if evaluation fails. This checkout does not include the checkpoint or `comet` package; evaluation therefore reports unavailable rather than fabricating a score.
-- Model loaders are local-only. Hugging Face offline environment flags are set at runtime. Translation directions and TTS voices are loaded on demand and the inactive models are released. Qwen remains knowledge-only, loads on first Q&A request, and unloads after five minutes idle.
-- A production frontend build can be served at `/app/` by the local FastAPI process. The launcher no longer requires Node for end users. An Inno Setup recipe, offline bundle builder, and first-launch validation script are included.
-- The output directory is created before voice synthesis for text jobs. The API client uses the current server origin in production, so packaged deployments can use a configured local port.
+- Extended the existing SQLite jobs table with source media, source language, text, and update metadata. Saved uploads, outputs, and video subtitles live under a job-specific output directory. Completed results can be loaded by job ID from the API, history, or `?job=` after browser refresh. The API rewrites saved local media URLs to the current server origin when it returns a result.
+- Kept the existing UI and icons. The result cards now compare source media/text with translated media/text, display source and target languages, and show a local quality-evaluation control. Recording and processing indicators remain in place. History labels have English, Hindi, and Marathi translations.
+- Centralized 23 translation language definitions in `server/config.py`. Only English, Hindi, and Marathi advertise the installed OCR and TTS capabilities. The frontend reads `/api/capabilities`, FastText detects typed text through `/api/languages/detect`, and users can override the source language. OCR rejects a source without an installed OCR pack; video and audio targets require a TTS voice in the UI.
+- Preserved the FAISS index and Sentence-Transformers embedder. Qwen is used only for knowledge-base Q&A and stays unloaded during translation; it unloads after five minutes idle.
+- Added reference-based IndicCOMET evaluation in a one-shot subprocess. A failed or unavailable metric never changes a completed translation. The official IndicCOMET checkpoint and `comet` package are not in this checkout. The official checkpoint URLs currently return HTTP 403, so no real IndicCOMET score has been verified. The installer reports quality evaluation as unavailable while keeping translation operational.
+- Built a standalone local Python runtime with the official CPU PyTorch wheel and app-local FFmpeg, Poppler, Tesseract, language packs, and model cache snapshots. The Inno Setup build produced `installer/release-final/BhashaNode-Setup.exe` and the required `BhashaNode-Setup-1.bin` data file. Keep both in the same folder when installing. The installer recipe defines Start Menu and desktop shortcuts; the bundled launcher started FastAPI and opened the browser in a workstation test. Shortcut creation still needs a clean installation test.
 
-## Workstation measurements
+## Verification on this workstation
 
-- Sequential CPU benchmark: text 1.45 seconds / 1.787 GiB peak; OCR 19.03 seconds / 2.011 GiB; ASR 26.33 seconds / 2.023 GiB; TTS 1.8 seconds / 1.99 GiB.
-- Fresh video pipeline after the Windows FFmpeg path fix: 16.33 seconds / 2.175 GiB peak / 30.5% of machine CPU.
-- Qwen Q&A: 51.04 seconds / 5.303 GiB peak when run alone; 53.45 seconds / 6.684 GiB in the sequential mixed-model run. The demo device has 48 GiB RAM, and Qwen remains lazy with idle unloading.
-- IndicCOMET cannot be measured until its local package and checkpoint are supplied. No score is shown when unavailable.
+- `npm run build` passed. `python -m unittest discover -s tests -p test_persistence.py -v` passed all six tests with `server/venv/Scripts/python.exe`.
+- The bundled runtime started FastAPI and served `/app/`. Live bundled text to Hindi and English, image OCR to Marathi, and video to Marathi completed. The original and translated videos and subtitles reopened through HTTP. A browser reload restored both video players; history reopened saved results. A saved video made on port 8766 also reopened on port 8000 after restart.
+- Earlier temporary-data API smoke testing completed text to Marathi, PDF OCR to Marathi, audio to English, and video to Marathi, including persisted media URLs.
+- FastText detected a Hindi sentence as `hi` with score 0.997. The bundled knowledge base loaded 150 FAISS chunks from 26 documents and Qwen remained unloaded after normal translations. A bundled Q&A request loaded Qwen and retrieved five source chunks. The current bundle Q&A response latency was about 53 seconds for its first query.
+- IndicCOMET failure behavior passed an API unit test. A real IndicCOMET score, microphone recording, actual shortcut installation, and uninstall have not been verified here. A clean installation needs more free disk space than was available after staging the 8.14 GiB bundle and 8.14 GiB setup data file.
 
-## Remaining release gates
+## Rebuilding the installer
 
-- Supply a relocatable Windows Python runtime with installed dependencies, local FFmpeg/Poppler/Tesseract assets, all model cache snapshots, and the IndicCOMET checkpoint/package. The COMET files must be laid out as `server/models/indic-comet/checkpoints/model.ckpt` and `server/models/indic-comet/hparams.yaml`, with the checkpoint's encoder weights in the offline model cache. Run `installer/build_offline.ps1` with those assets and Inno Setup 6 to produce `BhashaNode-Setup.exe`. No installer executable was built from this checkout.
-- Validate installation, shortcut launch, first run, and uninstall on clean Windows 10/11 machines.
-- Benchmark the final packaged build on target hardware. The repository benchmark uses current workstation models; the IndicCOMET path cannot be measured until its checkpoint is installed.
-- Exercise every full API pipeline and review screen against the final packaged build. Existing historical media jobs whose uploads were already deleted cannot regain their original preview.
-
-## Local verification commands
-
-```powershell
-& 'C:\Program Files\nodejs\npm.cmd' run build
-& '.\server\venv\Scripts\python.exe' -m unittest discover -s tests -p test_persistence.py -v
-& '.\server\venv\Scripts\python.exe' .\server\benchmark_finals.py --full
-```
+Build the frontend, then run `installer/build_offline.ps1` with paths for a standalone Python 3.13 base, the app's tested `site-packages`, the official `torch-2.12.0+cpu` Windows wheel, FFmpeg/Poppler/Tesseract binary directories, the local Hugging Face hub cache, and Inno Setup 6's `ISCC.exe`. The script validates the portable runtime before compiling. If an IndicCOMET checkpoint is later available, place it at `server/models/indic-comet/checkpoints/model.ckpt` with its `hparams.yaml` one directory above and install `unbabel-comet` in the bundled Python runtime before building.

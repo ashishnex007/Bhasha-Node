@@ -1,68 +1,45 @@
-"""
-Bhasha Node - Language Detection Engine
-Uses Meta's fastText lid.176.ftz model via ftlangdetect.
-Ships with pre-built wheels for Python 3.9-3.13 on Windows (no C++ build required).
-Model is loaded once on startup and stays resident in memory.
-"""
-from config import FASTTEXT_MODEL_PATH
+"""Offline language detection using the bundled FastText model."""
+from functools import lru_cache
 
-# Languages we care about — anything else maps to "en" (treat as English)
-_SUPPORTED = {"hi", "mr"}
+from config import FASTTEXT_MODEL_PATH, LANGUAGE_CONFIG
+
+_SUPPORTED = {entry["iso"] for entry in LANGUAGE_CONFIG.values()}
+
+
+@lru_cache(maxsize=1)
+def _model():
+    import fasttext
+
+    if not FASTTEXT_MODEL_PATH.is_file():
+        raise FileNotFoundError(f"Bundled language model is missing: {FASTTEXT_MODEL_PATH}")
+    return fasttext.load_model(str(FASTTEXT_MODEL_PATH))
+
+
+def detect_local(text: str) -> dict:
+    normalized = " ".join(text.split())
+    if not normalized:
+        return {"language": "en", "score": None, "available": False, "supported": True}
+    try:
+        labels, scores = _model().predict(normalized, k=1)
+        language = labels[0].removeprefix("__label__")
+        return {"language": language, "score": float(scores[0]),
+                "available": True, "supported": language in _SUPPORTED}
+    except Exception as exc:
+        print(f"[LID] Local language detection failed: {exc}")
+        return {"language": "en", "score": None, "available": False, "supported": True}
 
 
 class LanguageDetectionService:
-    """
-    Lightweight source language identifier.
-    Returns ISO-639-1 codes: 'hi' (Hindi), 'mr' (Marathi), 'en' (English/other).
-    """
+    """Returns ISO-639-1 codes and genuine FastText prediction scores."""
 
     def __init__(self):
-        print("[LOAD] Booting Language Detection Engine (fastText lid.176.ftz)...")
-        self._loaded = self._init_model()
-        print("[LOAD] Language Detection Engine ready.")
+        print("[LOAD] Booting Language Detection Engine (local FastText)...")
+        self._loaded = detect_local("hello")["available"]
+        print("[LOAD] Language Detection Engine ready." if self._loaded else
+              "[LID] Local model unavailable; language detection will use a fallback.")
 
-    # ==========================================
-    # MODEL BOOTSTRAP
-    # ==========================================
-    def _init_model(self) -> bool:
-        """
-        Prime the ftlangdetect cache. The library bundles lid.176.ftz internally
-        so no manual download is needed. We run a dummy detect to force model load
-        at startup rather than on first real request.
-        """
-        try:
-            from ftlangdetect import detect as _detect
-            _detect("hello")  # warm up — loads model into C++ runtime
-            self._detect_fn = _detect
-            return True
-        except Exception as e:
-            print(f"[LID] Warning: fasttext-langdetect failed to load: {e}")
-            print("[LID] Language detection will default to 'en' for all inputs.")
-            self._detect_fn = None
-            return False
-
-    # ==========================================
-    # PUBLIC API
-    # ==========================================
     def detect(self, text: str) -> str:
-        """
-        Detect the dominant language of the input text.
+        return self.detect_with_score(text)["language"]
 
-        Args:
-            text: Raw input string (any script/language).
-
-        Returns:
-            ISO-639-1 code: 'hi', 'mr', or 'en' (default for all other languages).
-        """
-        if not text or not text.strip() or not self._detect_fn:
-            return "en"
-
-        try:
-            # ftlangdetect returns {'lang': 'hi', 'score': 0.99...}
-            result = self._detect_fn(text.strip().replace("\n", " "), low_memory=False)
-            lang_code = result.get("lang", "en").lower()
-            detected = lang_code if lang_code in _SUPPORTED else "en"
-            return detected
-        except Exception as e:
-            print(f"[LID] Detection failed: {e}")
-            return "en"
+    def detect_with_score(self, text: str) -> dict:
+        return detect_local(text)

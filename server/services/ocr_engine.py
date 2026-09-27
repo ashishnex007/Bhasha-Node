@@ -6,11 +6,12 @@ Supports Devanagari (Marathi/Hindi) and English.
 import os
 import time
 from pathlib import Path
+from config import LANGUAGE_CONFIG, POPPLER_BIN, TESSERACT_BIN
 
 # Explicit paths for Windows — pdf2image/Tesseract won't pick these up from
 # PATH automatically when running inside a venv or via a server process.
-POPPLER_BIN_PATH = r"C:\Program Files\poppler\bin"
-TESSERACT_CMD = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
+POPPLER_BIN_PATH = POPPLER_BIN
+TESSERACT_CMD = TESSERACT_BIN
 
 try:
     from PIL import Image
@@ -51,12 +52,10 @@ class OCRService:
             print(f"[WARN] OCR Engine unavailable. Missing: {', '.join(missing)}")
 
     def _get_tesseract_lang(self, target_language: str) -> str:
-        """Maps target language to Tesseract lang code string."""
-        lang_map = {
-            "marathi": "mar+eng",
-            "hindi": "hin+eng",
-        }
-        return lang_map.get(target_language.lower(), "eng")
+        """Read all installed OCR language codes from the capability registry."""
+        return "+".join(dict.fromkeys(
+            entry["ocr"] for entry in LANGUAGE_CONFIG.values() if entry.get("ocr")
+        ))
 
     def extract_from_image(self, image_path: str, target_language: str = "marathi") -> str:
         """Extract text from a single image file."""

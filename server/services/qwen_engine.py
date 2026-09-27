@@ -7,6 +7,7 @@ Enforces strict agricultural grounding and prompt-injection defense.
 import os
 import re
 import threading
+import gc
 from typing import List, Dict, Any, Optional
 
 from config import (
@@ -44,6 +45,9 @@ class QwenEngine:
         self.model_path = str(QWEN_MODEL_PATH)
         self._llm = None
         self._lock = threading.Lock()
+        self._inference_lock = threading.Lock()
+        self._idle_timer: Optional[threading.Timer] = None
+        self._idle_seconds = 300
 
     def is_model_available(self) -> bool:
         """Check if the GGUF model file exists on disk."""
@@ -56,6 +60,9 @@ class QwenEngine:
     def _load_model(self):
         """Lazy load the GGUF model into CPU memory under thread lock."""
         with self._lock:
+            if self._idle_timer is not None:
+                self._idle_timer.cancel()
+                self._idle_timer = None
             if self._llm is not None:
                 return self._llm
 
@@ -75,11 +82,26 @@ class QwenEngine:
             self._llm = Llama(
                 model_path=self.model_path,
                 n_ctx=QWEN_N_CTX,
+                n_batch=128,
                 n_threads=QWEN_N_THREADS,
                 verbose=False,
             )
             print("[LOAD] Qwen3-4B Engine loaded and resident in RAM.\n")
             return self._llm
+
+    def _unload(self):
+        with self._lock:
+            self._llm = None
+            self._idle_timer = None
+        gc.collect()
+
+    def _schedule_unload(self):
+        with self._lock:
+            if self._idle_timer is not None:
+                self._idle_timer.cancel()
+            self._idle_timer = threading.Timer(self._idle_seconds, self._unload)
+            self._idle_timer.daemon = True
+            self._idle_timer.start()
 
     def generate_grounded_answer(
         self,
@@ -140,12 +162,13 @@ class QwenEngine:
         messages.append({"role": "user", "content": user_content})
 
         try:
-            response = llm.create_chat_completion(
-                messages=messages,
-                max_tokens=QWEN_MAX_TOKENS,
-                temperature=0.2,  # Low temperature for factual precision
-                top_p=0.9,
-            )
+            with self._inference_lock:
+                response = llm.create_chat_completion(
+                    messages=messages,
+                    max_tokens=QWEN_MAX_TOKENS,
+                    temperature=0.2,
+                    top_p=0.9,
+                )
             raw_answer = response["choices"][0]["message"]["content"].strip()
             # Cleanly remove <think>...</think> scratchpad if present
             clean_answer = re.sub(r'<think>[\s\S]*?</think>', '', raw_answer).strip()
@@ -153,3 +176,5 @@ class QwenEngine:
         except Exception as e:
             print(f"[QWEN] Error during inference: {e}")
             raise
+        finally:
+            self._schedule_unload()

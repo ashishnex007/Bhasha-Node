@@ -4,11 +4,25 @@ Assembles all routers, initializes ML services, mounts static outputs,
 and starts the background job worker.
 """
 import os
+import sys
+
+# Force UTF-8 encoding on Windows to prevent charmap/cp1252 crash when output is redirected to log files
+if hasattr(sys.stdout, "reconfigure"):
+    try:
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
+if hasattr(sys.stderr, "reconfigure"):
+    try:
+        sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
-from config import CORS_ORIGINS, OUTPUT_DIR
+from config import CORS_ORIGINS, OUTPUT_DIR, APP_ROOT, APP_VERSION
 
 # ==========================================
 # APP FACTORY
@@ -16,7 +30,7 @@ from config import CORS_ORIGINS, OUTPUT_DIR
 app = FastAPI(
     title="Bhasha Node - Offline AI Engine",
     description="Enterprise air-gapped multimodal AI pipeline for rural environments.",
-    version="2.0.0",
+    version=APP_VERSION,
 )
 
 app.add_middleware(
@@ -33,9 +47,11 @@ app.add_middleware(
 from routers import jobs, history, stm, system, knowledge
 
 app.include_router(jobs.router)
+app.include_router(jobs.capabilities_router)
 app.include_router(history.router)
 app.include_router(stm.router)
 app.include_router(system.router)
+app.add_api_route("/telemetry", system.get_stats, methods=["GET"], tags=["system"])
 app.include_router(knowledge.router)
 
 # ==========================================
@@ -48,7 +64,7 @@ def startup_event():
     This runs once at server boot — models stay resident in RAM.
     """
     print("\n" + "=" * 60)
-    print("  BHASHA NODE v2.0 — INITIALIZING AI CORE")
+    print(f"  BHASHA NODE v{APP_VERSION} — INITIALIZING AI CORE")
     print("=" * 60)
 
     from services.translation_engine import TranslationService
@@ -120,7 +136,7 @@ def startup_event():
     )
 
     # Resume any jobs that were interrupted by a previous crash
-    # worker.resume_stuck_jobs()
+    worker.resume_stuck_jobs()
 
     print("\n" + "=" * 60)
     print("  AI CORE READY — Multimodal Pipelines & Knowledge Base active")
@@ -130,6 +146,9 @@ def startup_event():
 # ==========================================
 # STATIC FILE SERVING (must be last — catch-all mount)
 # ==========================================
+client_dist = APP_ROOT / "client" / "dist"
+if client_dist.is_dir():
+    app.mount("/app", StaticFiles(directory=str(client_dist), html=True), name="frontend")
 app.mount("/", StaticFiles(directory=str(OUTPUT_DIR)), name="static")
 
 

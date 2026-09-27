@@ -15,9 +15,12 @@ import {
   Loader2,
   Cpu,
   Timer,
+  Mic,
+  Image as ImageIcon,
 } from 'lucide-react';
 
-import type { PipelineResult } from '../services/api';
+import type { JobStatus, LanguageCapability, PipelineResult } from '../services/api';
+import { evaluateJob } from '../services/api';
 import { useLanguage } from '../i18n/LanguageContext';
 
 interface ResultViewerProps {
@@ -25,7 +28,8 @@ interface ResultViewerProps {
   result: PipelineResult;
   jobType: string;
   onBack: () => void;
-  originalVideoUrl?: string;
+  job?: JobStatus | null;
+  capabilities: LanguageCapability[];
 }
 
 function downloadTxt(
@@ -308,11 +312,18 @@ function BlobDownloadBtn({
 export default function ResultViewer({
   darkMode,
   result,
+  jobType,
   onBack,
-  originalVideoUrl,
+  job,
+  capabilities,
 }: ResultViewerProps) {
   const { t } =
     useLanguage();
+  const [reference, setReference] = useState('');
+  const [evaluating, setEvaluating] = useState(false);
+  const [qualityScore, setQualityScore] = useState<number | undefined>(result.quality_score);
+  const [qualityError, setQualityError] = useState('');
+  useEffect(() => { setQualityScore(result.quality_score); setQualityError(''); }, [result]);
 
   const border = darkMode
     ? 'border-white/[0.06]'
@@ -367,11 +378,18 @@ export default function ResultViewer({
       )
     : '';
 
-  const hasSideBySide =
-    !!(
-      result.video_url &&
-      originalVideoUrl
-    );
+  const sourceUrl = result.source_url;
+  const sourceFile = job?.source_filename?.toLowerCase() || '';
+  const languageName = (code?: string) => {
+    const capability = capabilities.find(lang => lang.key === code || lang.iso === code || lang.translation_code === code);
+    if (capability) return capability.name;
+    if (code === 'en' || code === 'english' || code === 'eng_Latn') return 'English';
+    if (code === 'hi' || code === 'hindi' || code === 'hin_Deva') return 'Hindi';
+    if (code === 'mr' || code === 'marathi' || code === 'mar_Deva') return 'Marathi';
+    return code || 'Unknown';
+  };
+  const sourceName = languageName(job?.source_language || result.detected_source_language);
+  const targetName = languageName(job?.target_language);
 
   return (
     <div className="space-y-4 stagger">
@@ -405,204 +423,55 @@ export default function ResultViewer({
         </span>
       </div>
 
-      {/* Video */}
-      {result.video_url && (
-        <div
-          className={`rounded-2xl border ${border} ${bg} animate-fadeUp overflow-hidden`}
-        >
-          <div className="p-5 pb-3">
-            <span className={sectionLabel}>
-              <Video size={18} />
-              {t(
-                'result.translatedVideo'
-              )}
-            </span>
-          </div>
+      <div className={`p-4 rounded-2xl border ${border} ${bg} flex items-center gap-3 text-sm font-semibold animate-fadeUp`}>
+        <Languages size={18} className="text-indigo-400" />
+        <span>Source: {sourceName}</span><span className={muted}>→</span><span>Target: {targetName}</span>
+      </div>
 
-          {hasSideBySide ? (
-            <div className="grid grid-cols-2 gap-px bg-black/30">
-              <div className="relative bg-black">
-                <div className="absolute top-3 left-3 z-10 flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold bg-black/70 text-white backdrop-blur-sm">
-                  <Video size={14} />
-                  {t(
-                    'result.original'
-                  )}
-                </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <section className={`p-5 rounded-2xl border ${border} ${bg} animate-fadeUp min-w-0`}>
+          <h3 className={sectionLabel}>
+            {jobType === 'video' ? <Video size={18} /> : jobType === 'audio' ? <Mic size={18} /> : jobType === 'ocr' ? <ImageIcon size={18} /> : <FileText size={18} />}
+            Original · {sourceName}
+          </h3>
+          {jobType === 'video' && sourceUrl && <video controls preload="metadata" src={sourceUrl} className="w-full rounded-xl bg-black aspect-video object-contain" />}
+          {jobType === 'audio' && sourceUrl && <audio controls src={sourceUrl} className="w-full" />}
+          {jobType === 'ocr' && sourceUrl && (sourceFile.endsWith('.pdf')
+            ? <iframe title="Original PDF" src={sourceUrl} className="w-full h-80 rounded-xl bg-white" />
+            : <img src={sourceUrl} alt="Original document" className="w-full max-h-80 object-contain rounded-xl" />)}
+          {(jobType === 'video' || jobType === 'audio' || jobType === 'ocr') && !sourceUrl && <p className={`text-sm ${muted}`}>Original media is unavailable for this older result.</p>}
+          {sourceUrl && <a href={sourceUrl} target="_blank" rel="noreferrer" className="text-xs text-indigo-400 underline inline-block mt-3">Open original</a>}
+          {result.original_text && <div className="mt-4"><h4 className={`text-xs font-semibold mb-2 ${muted}`}>{jobType === 'audio' || jobType === 'video' ? 'Transcript' : jobType === 'ocr' ? 'Extracted text' : t('result.originalText')}</h4><p className="text-sm leading-relaxed whitespace-pre-wrap break-words">{result.original_text}</p></div>}
+        </section>
 
-                <video
-                  controls
-                  src={
-                    originalVideoUrl
-                  }
-                  className="w-full aspect-video object-contain"
-                />
-              </div>
+        <section className={`p-5 rounded-2xl border ${border} ${bg} animate-fadeUp min-w-0`}>
+          <h3 className={sectionLabel}><Languages size={18} />Translation · {targetName}</h3>
+          {result.video_url && <video controls preload="metadata" src={result.video_url} className="w-full rounded-xl bg-black aspect-video object-contain" />}
+          {result.audio_url && <div className="mt-2"><div className={`flex items-center gap-2 text-xs mb-2 ${muted}`}><Volume2 size={15} />{t('result.voiceOutput')}{audioSize && ` · ${audioSize}`}</div><audio controls src={result.audio_url} className="w-full" /></div>}
+          {result.translated_text && <div className="mt-4"><h4 className={`text-xs font-semibold mb-2 ${muted}`}>{t('result.yourTranslation')}</h4><p className="text-base font-semibold leading-relaxed whitespace-pre-wrap break-words">{result.translated_text}</p></div>}
+          {result.subtitle_url && <a href={result.subtitle_url} className="text-xs text-indigo-400 underline inline-block mt-3">Download subtitles</a>}
+        </section>
+      </div>
 
-              <div className="relative bg-black">
-                <div className="absolute top-3 left-3 z-10 flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold bg-indigo-600/90 text-white backdrop-blur-sm">
-                  <Languages
-                    size={14}
-                  />
-                  {t(
-                    'result.translated'
-                  )}
-                </div>
+      {(result.model_used || result.inference_time_sec !== undefined) && <div className={`flex flex-wrap gap-4 px-1 text-xs ${muted}`}>
+        {result.model_used && <span className="flex items-center gap-1"><Cpu size={13} />{result.model_used}</span>}
+        {result.inference_time_sec !== undefined && <span className="flex items-center gap-1"><Timer size={13} />{result.inference_time_sec}s</span>}
+        {videoSize && <span>{videoSize}</span>}
+      </div>}
 
-                <video
-                  controls
-                  src={
-                    result.video_url
-                  }
-                  className="w-full aspect-video object-contain"
-                />
-              </div>
-            </div>
-          ) : (
-            <div className="px-5 pb-5">
-              <video
-                controls
-                src={
-                  result.video_url
-                }
-                className="w-full rounded-xl bg-black"
-              />
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Original */}
-      {result.original_text && (
-        <div
-          className={`p-5 rounded-2xl border ${border} ${bg} animate-fadeUp`}
-        >
-          <span className={sectionLabel}>
-            <FileText size={18} />
-            {t(
-              'result.originalText'
-            )}
-          </span>
-
-          <p
-            className={`text-sm leading-relaxed ${
-              darkMode
-                ? 'text-zinc-300'
-                : 'text-zinc-700'
-            }`}
-          >
-            {result.original_text}
-          </p>
-        </div>
-      )}
-
-      {/* Translation */}
-      {result.translated_text && (
-        <div
-          className={`p-5 rounded-2xl border ${border} ${bg} animate-fadeUp`}
-        >
-          <span className={sectionLabel}>
-            <Languages size={18} />
-            {t(
-              'result.yourTranslation'
-            )}
-          </span>
-
-          <p
-            className={`text-lg font-semibold leading-relaxed ${
-              darkMode
-                ? 'text-zinc-100'
-                : 'text-zinc-900'
-            }`}
-          >
-            {result.translated_text}
-          </p>
-
-          {/* ── Metadata / confidence panel ── */}
-          {(result.detected_source_language ||
-            result.model_used ||
-            result.inference_time_sec !== undefined) && (
-            <>
-              <div className={`my-4 h-px ${darkMode ? 'bg-white/[0.05]' : 'bg-black/[0.05]'}`} />
-              <div className="grid grid-cols-2 gap-x-6 gap-y-2.5">
-
-                {/* Source language */}
-                {result.detected_source_language && (
-                  <div>
-                    <p className={`text-[9px] font-bold uppercase tracking-widest mb-0.5 ${muted}`}>
-                      Language Detection
-                    </p>
-                    <p className={`text-xs font-semibold ${
-                      darkMode ? 'text-zinc-300' : 'text-zinc-700'
-                    }`}>
-                      {result.detected_source_language === 'hi' ? 'Hindi हिन्दी'
-                        : result.detected_source_language === 'mr' ? 'Marathi मराठी'
-                        : 'English'}
-                    </p>
-                  </div>
-                )}
-
-                {/* Inference time */}
-                {result.inference_time_sec !== undefined && (
-                  <div>
-                    <p className={`text-[9px] font-bold uppercase tracking-widest mb-0.5 ${muted}`}>
-                      <span className="flex items-center gap-1"><Timer size={12} /> Inference Time</span>
-                    </p>
-                    <p className={`text-xs font-semibold font-mono ${
-                      darkMode ? 'text-zinc-300' : 'text-zinc-700'
-                    }`}>
-                      {result.inference_time_sec}s
-                    </p>
-                  </div>
-                )}
-
-                {/* Model */}
-                {result.model_used && (
-                  <div className="col-span-2">
-                    <p className={`text-[9px] font-bold uppercase tracking-widest mb-0.5 ${muted}`}>
-                      <span className="flex items-center gap-1"><Cpu size={12} /> Model</span>
-                    </p>
-                    <p className={`text-xs font-semibold ${
-                      darkMode ? 'text-indigo-300' : 'text-indigo-600'
-                    }`}>
-                      {result.model_used}
-                    </p>
-                  </div>
-                )}
-              </div>
-            </>
-          )}
-        </div>
-      )}
-
-      {/* Audio */}
-      {result.audio_url && (
-        <div
-          className={`p-5 rounded-2xl border ${border} ${bg} animate-fadeUp`}
-        >
-          <div className="flex items-center justify-between mb-3">
-            <span className={sectionLabel}>
-              <Volume2 size={18} />
-              {t(
-                'result.voiceOutput'
-              )}
-            </span>
-
-            {audioSize && (
-              <span
-                className={`text-[11px] font-mono ${muted}`}
-              >
-                {audioSize}
-              </span>
-            )}
-          </div>
-
-          <audio
-            controls
-            src={result.audio_url}
-            className="w-full h-12"
-          />
-        </div>
-      )}
+      {result.original_text && result.translated_text && job?.job_id && <details className={`p-5 rounded-2xl border ${border} ${bg}`}>
+        <summary className="cursor-pointer text-sm font-semibold flex items-center gap-2"><CheckCircle size={17} className="text-indigo-400" />Translation Quality</summary>
+        {qualityScore !== undefined && <p className="mt-3 text-sm font-semibold">IndicCOMET: {qualityScore.toFixed(3)}</p>}
+        <p className={`text-xs mt-2 ${muted}`}>Automatic quality metric — not a guarantee of correctness. A trusted reference translation is required.</p>
+        <textarea value={reference} onChange={event => setReference(event.target.value)} rows={3} placeholder="Paste a trusted translation" aria-label="Trusted reference translation" className={`w-full mt-3 p-3 rounded-xl border text-sm ${darkMode ? 'bg-[#0c0c14] border-white/[0.08]' : 'bg-white border-black/[0.08]'}`} />
+        <button disabled={!reference.trim() || evaluating} className="mt-3 px-4 py-2 rounded-xl bg-indigo-600 text-white text-sm font-semibold disabled:opacity-40 flex items-center gap-2" onClick={async () => {
+          setEvaluating(true); setQualityError('');
+          try { const scored = await evaluateJob(job.job_id, reference); setQualityScore(scored.quality_score); }
+          catch (error) { setQualityError(error instanceof Error ? error.message : 'Quality evaluation failed.'); }
+          finally { setEvaluating(false); }
+        }}>{evaluating && <Loader2 size={16} className="animate-spin" />}Evaluate locally</button>
+        {qualityError && <p role="alert" className="text-xs text-amber-400 mt-2">{qualityError}. The translation remains saved.</p>}
+      </details>}
 
       {/* Downloads */}
       {(hasText ||

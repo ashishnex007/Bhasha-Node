@@ -6,6 +6,7 @@ import tempfile
 import unittest
 from contextlib import closing
 from pathlib import Path
+from unittest.mock import patch
 
 _temp = tempfile.TemporaryDirectory()
 os.environ["BHASHA_DATA_DIR"] = _temp.name
@@ -53,6 +54,21 @@ class JobPersistenceTests(unittest.TestCase):
         self.assertTrue(first.delete_job(job_id))
         self.assertIsNone(first.get_job(job_id))
 
+    def test_saved_media_uses_current_local_server_port(self):
+        app = FastAPI()
+        app.include_router(jobs.router)
+        job_id = db.create_job("video", "marathi")
+        db.complete_job(job_id, {
+            "source_url": f"http://127.0.0.1:8766/{job_id}/source.mp4",
+            "video_url": f"http://127.0.0.1:8766/{job_id}/translated.mp4",
+            "subtitle_url": f"http://127.0.0.1:8766/{job_id}/subtitles.srt",
+        })
+        result = TestClient(app, base_url="http://127.0.0.1:9001").get(
+            f"/api/jobs/{job_id}").json()["result"]
+        self.assertEqual(result["source_url"], f"http://127.0.0.1:9001/{job_id}/source.mp4")
+        self.assertEqual(result["video_url"], f"http://127.0.0.1:9001/{job_id}/translated.mp4")
+        self.assertEqual(result["subtitle_url"], f"http://127.0.0.1:9001/{job_id}/subtitles.srt")
+
     def test_upload_uses_controlled_job_path(self):
         app = FastAPI()
         app.include_router(jobs.router)
@@ -65,7 +81,15 @@ class JobPersistenceTests(unittest.TestCase):
             client = TestClient(app)
             capability = client.get("/api/capabilities")
             self.assertEqual(capability.status_code, 200)
-            self.assertEqual(len(capability.json()["languages"]), 3)
+            languages = {entry["key"]: entry for entry in capability.json()["languages"]}
+            self.assertTrue({"english", "hindi", "marathi", "tamil", "telugu"} <= languages.keys())
+            self.assertTrue(languages["marathi"]["tts"])
+            self.assertFalse(languages["tamil"]["tts"])
+            unsupported = client.post("/api/jobs/submit/ocr",
+                                      data={"target_language": "marathi", "source_language": "ta"},
+                                      files={"ocr_file": ("page.png", b"image", "image/png")})
+            self.assertEqual(unsupported.status_code, 400)
+            self.assertIn("OCR is not available", unsupported.json()["detail"])
             response = client.post("/api/jobs/submit/ocr", data={"target_language": "marathi"},
                                    files={"ocr_file": ("../../field.pdf", b"%PDF-1.4\n", "application/pdf")})
             self.assertEqual(response.status_code, 200)
@@ -120,6 +144,18 @@ class JobPersistenceTests(unittest.TestCase):
         self.assertTrue(restored["result"]["subtitle_vtt_url"].endswith(f"/{job_id}/subtitles.vtt"))
         self.assertEqual((job_dir / "source.mp4").read_bytes(), b"source video")
         self.assertEqual((job_dir / "translated.mp4").read_bytes(), b"translated video")
+
+    def test_quality_failure_does_not_change_completed_translation(self):
+        app = FastAPI()
+        app.include_router(jobs.router)
+        job_id = db.create_job("text", "hindi", source_text="Water")
+        db.complete_job(job_id, {"original_text": "Water", "translated_text": "पानी"})
+        with patch.object(jobs, "INDIC_COMET_CHECKPOINT", Path(_temp.name) / "missing.ckpt"):
+            response = TestClient(app).post(f"/api/jobs/{job_id}/evaluate",
+                                            json={"reference_text": "जल"})
+        self.assertEqual(response.status_code, 503)
+        self.assertEqual(db.get_job(job_id)["status"], "complete")
+        self.assertEqual(db.get_job(job_id)["result"]["translated_text"], "पानी")
 
 
 if __name__ == "__main__":
