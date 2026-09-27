@@ -1,0 +1,141 @@
+INFO:     Started server process [12656]
+INFO:     Waiting for application startup.
+Note: Environment variable`HF_TOKEN` is set and is the current active token independently from the token you've just configured.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://127.0.0.1:8000 (Press CTRL+C to quit)
+Traceback (most recent call last):
+  File "C:\Projects\pers\baif\server\task_queue\job_worker.py", line 94, in _process
+    self._process_video(job_id, job["file_path"], target_lang, config)
+    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Projects\pers\baif\server\task_queue\job_worker.py", line 222, in _process_video
+    result_filename, translated_script, original_text = self._services["video"].process_video(
+                                                        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        input_video=file_path,
+        ^^^^^^^^^^^^^^^^^^^^^^
+    ...<3 lines>...
+        job_id=job_id,
+        ^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Projects\pers\baif\server\services\video_engine.py", line 128, in process_video
+    print(f"[L1] Audio extracted \u2192 {l1_audio}")
+    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ashis\AppData\Local\Programs\Python\Python313\Lib\encodings\cp1252.py", line 19, in encode
+    return codecs.charmap_encode(input,self.errors,encoding_table)[0]
+           ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeEncodeError: 'charmap' codec can't encode character '\u2192' in position 21: character maps to <undefined>
+Traceback (most recent call last):
+  File "C:\Projects\pers\baif\server\task_queue\job_worker.py", line 94, in _process
+    self._process_video(job_id, job["file_path"], target_lang, config)
+    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Projects\pers\baif\server\task_queue\job_worker.py", line 222, in _process_video
+    result_filename, translated_script, original_text = self._services["video"].process_video(
+                                                        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        input_video=file_path,
+        ^^^^^^^^^^^^^^^^^^^^^^
+    ...<3 lines>...
+        job_id=job_id,
+        ^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Projects\pers\baif\server\services\video_engine.py", line 128, in process_video
+    print(f"[L1] Audio extracted \u2192 {l1_audio}")
+    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ashis\AppData\Local\Programs\Python\Python313\Lib\encodings\cp1252.py", line 19, in encode
+    return codecs.charmap_encode(input,self.errors,encoding_table)[0]
+           ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeEncodeError: 'charmap' codec can't encode character '\u2192' in position 21: character maps to <undefined>
+Traceback (most recent call last):
+  File "C:\Projects\pers\baif\server\task_queue\job_worker.py", line 94, in _process
+    self._process_video(job_id, job["file_path"], target_lang, config)
+    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Projects\pers\baif\server\task_queue\job_worker.py", line 222, in _process_video
+    result_filename, translated_script, original_text = self._services["video"].process_video(
+                                                        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        input_video=file_path,
+        ^^^^^^^^^^^^^^^^^^^^^^
+    ...<3 lines>...
+        job_id=job_id,
+        ^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Projects\pers\baif\server\services\video_engine.py", line 128, in process_video
+    print(f"[L1] Audio extracted \u2192 {l1_audio}")
+    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ashis\AppData\Local\Programs\Python\Python313\Lib\encodings\cp1252.py", line 19, in encode
+    return codecs.charmap_encode(input,self.errors,encoding_table)[0]
+           ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeEncodeError: 'charmap' codec can't encode character '\u2192' in position 21: character maps to <undefined>
+Traceback (most recent call last):
+  File "C:\Projects\pers\baif\server\task_queue\job_worker.py", line 94, in _process
+    self._process_video(job_id, job["file_path"], target_lang, config)
+    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Projects\pers\baif\server\task_queue\job_worker.py", line 222, in _process_video
+    result_filename, translated_script, original_text = self._services["video"].process_video(
+                                                        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        input_video=file_path,
+        ^^^^^^^^^^^^^^^^^^^^^^
+    ...<3 lines>...
+        job_id=job_id,
+        ^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Projects\pers\baif\server\services\video_engine.py", line 128, in process_video
+    print(f"[L1] Audio extracted \u2192 {l1_audio}")
+    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ashis\AppData\Local\Programs\Python\Python313\Lib\encodings\cp1252.py", line 19, in encode
+    return codecs.charmap_encode(input,self.errors,encoding_table)[0]
+           ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeEncodeError: 'charmap' codec can't encode character '\u2192' in position 21: character maps to <undefined>
+Exception in callback _ProactorBasePipeTransport._call_connection_lost()
+handle: <Handle _ProactorBasePipeTransport._call_connection_lost()>
+Traceback (most recent call last):
+  File "C:\Users\ashis\AppData\Local\Programs\Python\Python313\Lib\asyncio\events.py", line 89, in _run
+    self._context.run(self._callback, *self._args)
+    ~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ashis\AppData\Local\Programs\Python\Python313\Lib\asyncio\proactor_events.py", line 165, in _call_connection_lost
+    self._sock.shutdown(socket.SHUT_RDWR)
+    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^
+ConnectionResetError: [WinError 10054] An existing connection was forcibly closed by the remote host
+Traceback (most recent call last):
+  File "C:\Projects\pers\baif\server\task_queue\job_worker.py", line 94, in _process
+    self._process_video(job_id, job["file_path"], target_lang, config)
+    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Projects\pers\baif\server\task_queue\job_worker.py", line 222, in _process_video
+    result_filename, translated_script, original_text = self._services["video"].process_video(
+                                                        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        input_video=file_path,
+        ^^^^^^^^^^^^^^^^^^^^^^
+    ...<3 lines>...
+        job_id=job_id,
+        ^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Projects\pers\baif\server\services\video_engine.py", line 128, in process_video
+    print(f"[L1] Audio extracted \u2192 {l1_audio}")
+    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ashis\AppData\Local\Programs\Python\Python313\Lib\encodings\cp1252.py", line 19, in encode
+    return codecs.charmap_encode(input,self.errors,encoding_table)[0]
+           ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeEncodeError: 'charmap' codec can't encode character '\u2192' in position 21: character maps to <undefined>
+Traceback (most recent call last):
+  File "C:\Projects\pers\baif\server\task_queue\job_worker.py", line 94, in _process
+    self._process_video(job_id, job["file_path"], target_lang, config)
+    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Projects\pers\baif\server\task_queue\job_worker.py", line 222, in _process_video
+    result_filename, translated_script, original_text = self._services["video"].process_video(
+                                                        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        input_video=file_path,
+        ^^^^^^^^^^^^^^^^^^^^^^
+    ...<3 lines>...
+        job_id=job_id,
+        ^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Projects\pers\baif\server\services\video_engine.py", line 128, in process_video
+    print(f"[L1] Audio extracted -> {l1_audio}")
+    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ashis\AppData\Local\Programs\Python\Python313\Lib\encodings\cp1252.py", line 19, in encode
+    return codecs.charmap_encode(input,self.errors,encoding_table)[0]
+           ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeEncodeError: 'charmap' codec can't encode character '\u2192' in position 21: character maps to <undefined>

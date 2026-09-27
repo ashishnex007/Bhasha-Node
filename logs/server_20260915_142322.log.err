@@ -1,0 +1,5 @@
+INFO:     Started server process [6720]
+INFO:     Waiting for application startup.
+Note: Environment variable`HF_TOKEN` is set and is the current active token independently from the token you've just configured.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://127.0.0.1:8000 (Press CTRL+C to quit)

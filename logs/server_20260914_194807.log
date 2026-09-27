@@ -1,0 +1,173 @@
+[QUEUE] Background job worker thread started.
+
+============================================================
+  BHASHA NODE v2.0 — INITIALIZING AI CORE
+============================================================
+
+[1/7] Loading Translation Service (IndicTrans2 — en-indic + indic-en + indic-indic)...
+[LOAD] Booting Translation Engine (IndicTrans2 - 3 models)...
+[LOAD] Translation Engine ready (en-indic loaded; indic-en + indic-indic lazy).
+[2/7] Loading TTS Service (Meta MMS VITS mar/hin)...
+[LOAD] Booting TTS Engines (Marathi, Hindi & English)...
+[LOAD] Initializing MAR TTS Model (facebook/mms-tts-mar)...
+[LOAD] MAR TTS ready.
+[LOAD] Initializing HIN TTS Model (facebook/mms-tts-hin)...
+[LOAD] HIN TTS ready.
+[LOAD] Initializing ENG TTS Model (facebook/mms-tts-eng)...
+[LOAD] ENG TTS ready.
+[3/7] Loading ASR Service (Faster-Whisper INT8 Small)...
+[LOAD] Booting ASR Engine (Faster-Whisper INT8)...
+[4/7] Loading STM (Word Dictionary) & System Telemetry...
+[LOAD] STM (Word Dictionary) engine ready.
+[LOAD] System Telemetry Engine (psutil) ready.
+[5/7] Loading Video Service (FFmpeg pipeline)...
+[6/7] Loading OCR Service (Tesseract)...
+[LOAD] OCR Engine (Tesseract) ready.
+[7/7] Loading Language Detection Service (fastText LID)...
+[LOAD] Booting Language Detection Engine (fastText lid.176.ftz)...
+[LOAD] Language Detection Engine ready.
+[8/8] Initializing Agricultural Knowledge Assistant (FAISS & Lazy Qwen3-4B)...
+[KB] Loaded FAISS index with 150 chunks from disk.
+[QUEUE] ML services registered with job worker.
+
+============================================================
+  AI CORE READY — Multimodal Pipelines & Knowledge Base active
+============================================================
+
+INFO:     127.0.0.1:57932 - "GET /api/system/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57932 - "GET /api/system/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57932 - "GET /api/system/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57932 - "GET /api/system/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57932 - "GET /api/system/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57932 - "GET /api/system/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57932 - "GET /api/system/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57932 - "GET /api/system/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57932 - "GET /api/system/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57932 - "GET /api/system/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57932 - "GET /api/system/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57932 - "GET /api/system/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57932 - "GET /api/system/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57932 - "GET /api/system/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57932 - "GET /api/system/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57932 - "GET /api/system/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57932 - "GET /api/system/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57932 - "GET /api/system/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57932 - "GET /api/system/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57932 - "GET /api/system/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57932 - "GET /api/system/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57932 - "GET /api/system/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57932 - "GET /api/system/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57932 - "GET /api/system/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57932 - "GET /api/system/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57932 - "GET /api/system/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57932 - "GET /api/system/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57932 - "GET /api/system/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57932 - "GET /api/system/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57932 - "GET /api/system/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57932 - "GET /api/system/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57932 - "GET /api/system/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57932 - "GET /api/system/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57932 - "GET /api/system/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57932 - "GET /api/system/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57932 - "GET /api/system/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57932 - "GET /api/system/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57932 - "GET /api/system/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57932 - "GET /api/system/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57932 - "GET /api/system/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57932 - "GET /api/system/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57932 - "GET /api/system/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57932 - "GET /api/system/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57932 - "GET /api/system/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57932 - "GET /api/system/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57932 - "GET /api/system/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57932 - "GET /api/system/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57932 - "GET /api/system/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57932 - "GET /api/system/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57932 - "GET /api/system/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57932 - "GET /api/system/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57932 - "GET /api/system/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57932 - "GET /api/system/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57932 - "GET /api/system/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57932 - "GET /api/system/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57932 - "GET /api/system/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57932 - "GET /api/system/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57932 - "GET /api/system/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57932 - "GET /api/system/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57932 - "GET /api/system/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57932 - "GET /api/system/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57932 - "GET /api/system/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57932 - "GET /api/system/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57932 - "GET /api/system/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57932 - "GET /api/system/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57932 - "GET /api/system/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57932 - "GET /api/system/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57932 - "GET /api/system/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57932 - "GET /api/system/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57932 - "GET /api/system/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57932 - "GET /api/system/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57932 - "GET /api/system/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57932 - "GET /api/system/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57932 - "GET /api/system/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57932 - "GET /api/system/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57932 - "GET /api/system/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57932 - "GET /api/system/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57932 - "GET /api/system/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57932 - "GET /api/system/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57932 - "GET /api/system/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57932 - "GET /api/system/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57932 - "GET /api/system/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57932 - "GET /api/system/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57932 - "GET /api/system/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57932 - "GET /api/system/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57932 - "GET /api/system/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57932 - "GET /api/system/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57932 - "GET /api/system/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57932 - "GET /api/system/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57932 - "GET /api/system/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57932 - "GET /api/system/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57932 - "GET /api/system/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57932 - "GET /api/system/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57932 - "GET /api/system/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57932 - "GET /api/system/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57932 - "GET /api/system/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57932 - "GET /api/system/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57932 - "GET /api/system/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57932 - "GET /api/system/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57932 - "GET /api/system/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57932 - "GET /api/system/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57932 - "GET /api/system/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57932 - "GET /api/system/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57932 - "GET /api/system/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57932 - "GET /api/system/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57932 - "GET /api/system/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57932 - "GET /api/system/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57932 - "GET /api/system/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57932 - "GET /api/system/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57932 - "GET /api/system/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57932 - "GET /api/system/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57932 - "GET /api/system/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57932 - "GET /api/system/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57932 - "GET /api/system/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57932 - "GET /api/system/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57932 - "GET /api/system/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57932 - "GET /api/system/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57932 - "GET /api/system/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57932 - "GET /api/system/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57932 - "GET /api/system/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57932 - "GET /api/system/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57932 - "GET /api/system/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57932 - "GET /api/system/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57932 - "GET /api/system/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57932 - "GET /api/system/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57932 - "GET /api/system/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57932 - "GET /api/system/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57932 - "GET /api/system/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57932 - "GET /api/system/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57932 - "GET /api/system/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57932 - "GET /api/system/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57932 - "GET /api/system/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57932 - "GET /api/system/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57932 - "GET /api/system/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57932 - "GET /api/system/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57932 - "GET /api/system/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57932 - "GET /api/system/stats HTTP/1.1" 200 OK

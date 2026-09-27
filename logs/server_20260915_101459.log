@@ -1,0 +1,200 @@
+[QUEUE] Background job worker thread started.
+
+============================================================
+  BHASHA NODE v2.0 — INITIALIZING AI CORE
+============================================================
+
+[1/7] Loading Translation Service (IndicTrans2 — en-indic + indic-en + indic-indic)...
+[LOAD] Booting Translation Engine (IndicTrans2 - 3 models)...
+[LOAD] Translation Engine ready (en-indic loaded; indic-en + indic-indic lazy).
+[2/7] Loading TTS Service (Meta MMS VITS mar/hin)...
+[LOAD] Booting TTS Engines (Marathi, Hindi & English)...
+[LOAD] Initializing MAR TTS Model (facebook/mms-tts-mar)...
+[LOAD] MAR TTS ready.
+[LOAD] Initializing HIN TTS Model (facebook/mms-tts-hin)...
+[LOAD] HIN TTS ready.
+[LOAD] Initializing ENG TTS Model (facebook/mms-tts-eng)...
+[LOAD] ENG TTS ready.
+[3/7] Loading ASR Service (Faster-Whisper INT8 Small)...
+[LOAD] Booting ASR Engine (Faster-Whisper INT8)...
+[4/7] Loading STM (Word Dictionary) & System Telemetry...
+[LOAD] STM (Word Dictionary) engine ready.
+[LOAD] System Telemetry Engine (psutil) ready.
+[5/7] Loading Video Service (FFmpeg pipeline)...
+[6/7] Loading OCR Service (Tesseract)...
+[LOAD] OCR Engine (Tesseract) ready.
+[7/7] Loading Language Detection Service (fastText LID)...
+[LOAD] Booting Language Detection Engine (fastText lid.176.ftz)...
+[LOAD] Language Detection Engine ready.
+[8/8] Initializing Agricultural Knowledge Assistant (FAISS & Lazy Qwen3-4B)...
+[KB] Loaded FAISS index with 150 chunks from disk.
+[QUEUE] ML services registered with job worker.
+
+============================================================
+  AI CORE READY — Multimodal Pipelines & Knowledge Base active
+============================================================
+
+INFO:     127.0.0.1:57212 - "GET /api/system/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57212 - "GET /api/system/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57212 - "GET /api/system/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57212 - "GET /api/system/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57212 - "GET /api/system/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57212 - "GET /api/system/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57212 - "GET /api/system/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57212 - "GET /api/system/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57212 - "GET /api/system/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57212 - "GET /api/system/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57212 - "GET /api/system/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57212 - "GET /api/system/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57212 - "GET /api/system/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57212 - "GET /api/system/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57212 - "GET /api/system/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57212 - "GET /api/system/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57212 - "GET /api/system/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57220 - "GET /api/system/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57212 - "GET /api/system/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57212 - "GET /api/system/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57212 - "GET /api/system/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57212 - "GET /api/system/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57212 - "GET /api/system/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57212 - "GET /api/system/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55466 - "POST /api/jobs/submit/video HTTP/1.1" 422 Unprocessable Content
+INFO:     127.0.0.1:55470 - "POST /api/jobs/submit/video HTTP/1.1" 200 OK
+--- STARTING VIDEO PIPELINE: C:\Projects\pers\baif\server\outputs\temp_input_871c891c_test_short.mp4 (job=871c891c) ---
+[L1/6] Extracting audio footprint...
+[L1] Audio extracted -> outputs\cache_871c891c\L1_audio.wav
+[L2/6] Transcribing with Faster-Whisper...
+INFO:     127.0.0.1:55471 - "GET /api/jobs/871c891c HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55472 - "GET /api/jobs/871c891c HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55473 - "GET /api/jobs/871c891c HTTP/1.1" 200 OK
+[ASR] Whisper detected language: 'en' (prob=0.94)
+[SUCCESS] Timestamped transcription completed in 6.89s
+[L2] Transcription cached (2 segments, lang='en') -> outputs\cache_871c891c\L2_segments.json
+[L3/6] Translating and building SRT subtitle file...
+[L3] Whisper source language: 'en' -> FLORES tag: 'eng_Latn' -> target 'mar_Deva'
+INFO:     127.0.0.1:55474 - "GET /api/jobs/871c891c HTTP/1.1" 200 OK
+[SUCCESS] mar_Deva Translation completed (1 chunk(s)) in 1.70s
+INFO:     127.0.0.1:55477 - "GET /api/jobs/871c891c HTTP/1.1" 200 OK
+[SUCCESS] mar_Deva Translation completed (1 chunk(s)) in 1.47s
+[L3] SRT + translations cached -> outputs\cache_871c891c\L3_srt.srt
+[L4/6] Synthesizing native voiceover (chunked)...
+[TTS] Splitting into 1 chunks for safe synthesis...
+INFO:     127.0.0.1:55478 - "GET /api/jobs/871c891c HTTP/1.1" 200 OK
+[SUCCESS] Audio saved to outputs\cache_871c891c\L4_tts.wav in 3.03s
+[L5/6] Remuxing final video (This will tax the CPU)...
+--- VIDEO PIPELINE COMPLETE in 13.94s ---
+[CACHE] Cleaned up outputs\cache_871c891c
+[LID] Video job 871c891c: detected source language = 'en'
+INFO:     127.0.0.1:55479 - "GET /api/jobs/871c891c HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64337 - "GET /api/system/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59185 - "GET /api/system/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57187 - "GET /api/system/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57187 - "GET /api/system/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57187 - "GET /api/system/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57187 - "GET /api/system/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57187 - "GET /api/system/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57187 - "GET /api/system/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57187 - "POST /api/jobs/submit/video HTTP/1.1" 200 OK
+--- STARTING VIDEO PIPELINE: C:\Projects\pers\baif\server\outputs\temp_input_3999dd1d_eng.mp4 (job=3999dd1d) ---
+[L1/6] Extracting audio footprint...
+[L1] Audio extracted -> outputs\cache_3999dd1d\L1_audio.wav
+[L2/6] Transcribing with Faster-Whisper...
+INFO:     127.0.0.1:57187 - "GET /api/system/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55891 - "GET /api/jobs/3999dd1d HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55891 - "GET /api/jobs/3999dd1d HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55891 - "GET /api/system/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57187 - "GET /api/jobs/3999dd1d HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57187 - "GET /api/jobs/3999dd1d HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57187 - "GET /api/system/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55891 - "GET /api/jobs/3999dd1d HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55891 - "GET /api/jobs/3999dd1d HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55891 - "GET /api/system/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57187 - "GET /api/jobs/3999dd1d HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57187 - "GET /api/jobs/3999dd1d HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57187 - "GET /api/system/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55891 - "GET /api/jobs/3999dd1d HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55891 - "GET /api/jobs/3999dd1d HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55891 - "GET /api/system/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57187 - "GET /api/jobs/3999dd1d HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62334 - "GET /api/system/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62334 - "GET /api/system/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62334 - "GET /api/system/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62334 - "GET /api/system/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62334 - "GET /api/system/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62334 - "GET /api/system/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62334 - "GET /api/system/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62334 - "GET /api/system/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62334 - "GET /api/system/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58675 - "GET /api/system/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58675 - "GET /api/system/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58675 - "GET /api/system/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58675 - "GET /api/system/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58675 - "GET /api/system/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58675 - "GET /api/system/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58675 - "GET /api/system/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58675 - "GET /api/system/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58675 - "GET /api/system/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58675 - "GET /api/system/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58675 - "GET /api/system/stats HTTP/1.1" 200 OK
+[ASR] Whisper detected language: 'en' (prob=0.99)
+[SUCCESS] Timestamped transcription completed in 49.91s
+[L2] Transcription cached (38 segments, lang='en') -> outputs\cache_3999dd1d\L2_segments.json
+[L3/6] Translating and building SRT subtitle file...
+[L3] Whisper source language: 'en' -> FLORES tag: 'eng_Latn' -> target 'hin_Deva'
+INFO:     127.0.0.1:58675 - "GET /api/system/stats HTTP/1.1" 200 OK
+[SUCCESS] hin_Deva Translation completed (1 chunk(s)) in 1.56s
+INFO:     127.0.0.1:58675 - "GET /api/system/stats HTTP/1.1" 200 OK
+[SUCCESS] hin_Deva Translation completed (1 chunk(s)) in 1.35s
+INFO:     127.0.0.1:58675 - "GET /api/system/stats HTTP/1.1" 200 OK
+[SUCCESS] hin_Deva Translation completed (1 chunk(s)) in 2.68s
+INFO:     127.0.0.1:58675 - "GET /api/system/stats HTTP/1.1" 200 OK
+[SUCCESS] hin_Deva Translation completed (1 chunk(s)) in 1.03s
+INFO:     127.0.0.1:58675 - "GET /api/system/stats HTTP/1.1" 200 OK
+[SUCCESS] hin_Deva Translation completed (1 chunk(s)) in 3.41s
+INFO:     127.0.0.1:58675 - "GET /api/system/stats HTTP/1.1" 200 OK
+[SUCCESS] hin_Deva Translation completed (1 chunk(s)) in 1.63s
+INFO:     127.0.0.1:58675 - "GET /api/system/stats HTTP/1.1" 200 OK
+[SUCCESS] hin_Deva Translation completed (1 chunk(s)) in 0.65s
+[SUCCESS] hin_Deva Translation completed (1 chunk(s)) in 0.57s
+[SUCCESS] hin_Deva Translation completed (1 chunk(s)) in 0.54s
+INFO:     127.0.0.1:58675 - "GET /api/system/stats HTTP/1.1" 200 OK
+[SUCCESS] hin_Deva Translation completed (1 chunk(s)) in 1.30s
+INFO:     127.0.0.1:58675 - "GET /api/system/stats HTTP/1.1" 200 OK
+[SUCCESS] hin_Deva Translation completed (1 chunk(s)) in 3.15s
+INFO:     127.0.0.1:58675 - "GET /api/system/stats HTTP/1.1" 200 OK
+[SUCCESS] hin_Deva Translation completed (1 chunk(s)) in 2.19s
+INFO:     127.0.0.1:58675 - "GET /api/system/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58675 - "GET /api/system/stats HTTP/1.1" 200 OK
+[SUCCESS] hin_Deva Translation completed (1 chunk(s)) in 2.13s
+INFO:     127.0.0.1:58675 - "GET /api/system/stats HTTP/1.1" 200 OK
+[SUCCESS] hin_Deva Translation completed (1 chunk(s)) in 3.69s
+INFO:     127.0.0.1:58675 - "GET /api/system/stats HTTP/1.1" 200 OK
+[SUCCESS] hin_Deva Translation completed (1 chunk(s)) in 1.74s
+[SUCCESS] hin_Deva Translation completed (1 chunk(s)) in 0.52s
+INFO:     127.0.0.1:58675 - "GET /api/system/stats HTTP/1.1" 200 OK
+[SUCCESS] hin_Deva Translation completed (1 chunk(s)) in 0.86s
+INFO:     127.0.0.1:58675 - "GET /api/system/stats HTTP/1.1" 200 OK
+[SUCCESS] hin_Deva Translation completed (1 chunk(s)) in 2.16s
+[SUCCESS] hin_Deva Translation completed (1 chunk(s)) in 0.95s
+INFO:     127.0.0.1:58675 - "GET /api/system/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58675 - "GET /api/system/stats HTTP/1.1" 200 OK
+[SUCCESS] hin_Deva Translation completed (1 chunk(s)) in 2.90s
+INFO:     127.0.0.1:58675 - "GET /api/system/stats HTTP/1.1" 200 OK
+[SUCCESS] hin_Deva Translation completed (1 chunk(s)) in 1.99s
+INFO:     127.0.0.1:58675 - "GET /api/system/stats HTTP/1.1" 200 OK
+[SUCCESS] hin_Deva Translation completed (1 chunk(s)) in 1.80s
+[SUCCESS] hin_Deva Translation completed (1 chunk(s)) in 0.54s
+[SUCCESS] hin_Deva Translation completed (1 chunk(s)) in 0.56s
+INFO:     127.0.0.1:58675 - "GET /api/system/stats HTTP/1.1" 200 OK
+[SUCCESS] hin_Deva Translation completed (1 chunk(s)) in 1.93s
+INFO:     127.0.0.1:58675 - "GET /api/system/stats HTTP/1.1" 200 OK
+[SUCCESS] hin_Deva Translation completed (1 chunk(s)) in 1.66s
+INFO:     127.0.0.1:58675 - "GET /api/system/stats HTTP/1.1" 200 OK
+[SUCCESS] hin_Deva Translation completed (1 chunk(s)) in 2.49s
+INFO:     127.0.0.1:58675 - "GET /api/system/stats HTTP/1.1" 200 OK
+[SUCCESS] hin_Deva Translation completed (1 chunk(s)) in 1.12s
+INFO:     127.0.0.1:58675 - "GET /api/system/stats HTTP/1.1" 200 OK
+[SUCCESS] hin_Deva Translation completed (1 chunk(s)) in 1.51s
+[SUCCESS] hin_Deva Translation completed (1 chunk(s)) in 1.55s
+INFO:     127.0.0.1:58675 - "GET /api/system/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58675 - "GET /api/system/stats HTTP/1.1" 200 OK

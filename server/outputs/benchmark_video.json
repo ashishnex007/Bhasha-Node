@@ -1,0 +1,10 @@
+[
+  {
+    "stage": "video",
+    "seconds": 16.33,
+    "peak_ram_gb": 2.175,
+    "cpu_percent_of_machine": 30.5,
+    "status": "ok",
+    "error": null
+  }
+]

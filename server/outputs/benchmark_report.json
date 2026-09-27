@@ -1,0 +1,79 @@
+[
+  {
+    "stage": "initialize translation",
+    "seconds": 0.54,
+    "peak_ram_gb": 0.738,
+    "cpu_percent_of_machine": 21.4,
+    "status": "ok",
+    "error": null
+  },
+  {
+    "stage": "initialize ASR",
+    "seconds": 1.41,
+    "peak_ram_gb": 1.298,
+    "cpu_percent_of_machine": 23.0,
+    "status": "ok",
+    "error": null
+  },
+  {
+    "stage": "initialize TTS",
+    "seconds": 0.0,
+    "peak_ram_gb": 0.995,
+    "cpu_percent_of_machine": 0.0,
+    "status": "ok",
+    "error": null
+  },
+  {
+    "stage": "text translation",
+    "seconds": 1.12,
+    "peak_ram_gb": 1.787,
+    "cpu_percent_of_machine": 34.1,
+    "status": "ok",
+    "error": null
+  },
+  {
+    "stage": "OCR",
+    "seconds": 13.94,
+    "peak_ram_gb": 2.011,
+    "cpu_percent_of_machine": 2.1,
+    "status": "ok",
+    "error": null
+  },
+  {
+    "stage": "ASR",
+    "seconds": 22.2,
+    "peak_ram_gb": 2.023,
+    "cpu_percent_of_machine": 34.1,
+    "status": "ok",
+    "error": null
+  },
+  {
+    "stage": "TTS",
+    "seconds": 1.59,
+    "peak_ram_gb": 1.977,
+    "cpu_percent_of_machine": 31.0,
+    "status": "ok",
+    "error": null
+  },
+  {
+    "stage": "video",
+    "seconds": 10.29,
+    "peak_ram_gb": 2.249,
+    "cpu_percent_of_machine": 31.3,
+    "status": "ok",
+    "error": null
+  },
+  {
+    "stage": "Qwen Q&A",
+    "seconds": 47.83,
+    "peak_ram_gb": 6.706,
+    "cpu_percent_of_machine": 36.8,
+    "status": "ok",
+    "error": null
+  },
+  {
+    "stage": "IndicCOMET",
+    "status": "unavailable",
+    "reason": "Local checkpoint is missing"
+  }
+]

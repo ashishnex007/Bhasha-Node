@@ -1,0 +1,10 @@
+[
+  {
+    "stage": "Qwen Q&A isolated",
+    "seconds": 51.04,
+    "peak_ram_gb": 5.303,
+    "cpu_percent_of_machine": 38.5,
+    "status": "ok",
+    "error": null
+  }
+]

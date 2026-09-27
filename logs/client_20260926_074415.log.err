@@ -1,0 +1,30 @@
+[33m[vite:css][postcss] @import must precede all other statements (besides @charset or empty @layer)
+1973 |    }
+1974 |  }
+1975 |  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@4...
+     |  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+1976 |  :root {
+1977 |    font-family: 'Inter', system-ui, -apple-system, sans-serif;[39m
+[33m[vite:css][postcss] @import must precede all other statements (besides @charset or empty @layer)
+1973 |    }
+1974 |  }
+1975 |  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@4...
+     |  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+1976 |  :root {
+1977 |    font-family: 'Inter', system-ui, -apple-system, sans-serif;[39m
+[33m[vite:css][postcss] @import must precede all other statements (besides @charset or empty @layer)
+1973 |    }
+1974 |  }
+1975 |  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@4...
+     |  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+1976 |  :root {
+1977 |    font-family: 'Inter', system-ui, -apple-system, sans-serif;[39m
+[2m8:16:21 am[22m [31m[1m[vite][22m[39m [31m[2m(client)[22m[39m Pre-transform error: Failed to load url /src/App.tsx (resolved id: C:/Projects/pers/baif/client/src/App.tsx) in C:/Projects/pers/baif/client/src/main.tsx. Does the file exist?
+[33m[vite:css][postcss] @import must precede all other statements (besides @charset or empty @layer)
+1973 |    }
+1974 |  }
+1975 |  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@4...
+     |  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+1976 |  :root {
+1977 |    font-family: 'Inter', system-ui, -apple-system, sans-serif;[39m
+^C

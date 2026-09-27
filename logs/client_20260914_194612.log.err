@@ -1,0 +1,8 @@
+[33m[vite:css][postcss] @import must precede all other statements (besides @charset or empty @layer)
+1973 |    }
+1974 |  }
+1975 |  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@4...
+     |  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+1976 |  :root {
+1977 |    font-family: 'Inter', system-ui, -apple-system, sans-serif;[39m
+^C
