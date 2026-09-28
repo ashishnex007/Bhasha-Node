@@ -21,6 +21,14 @@ The existing application uses React/Vite/Tailwind, FastAPI, a single background 
 - FastText detected a Hindi sentence as `hi` with score 0.997. The bundled knowledge base loaded 150 FAISS chunks from 26 documents and Qwen remained unloaded after normal translations. A bundled Q&A request loaded Qwen and retrieved five source chunks. The current bundle Q&A response latency was about 53 seconds for its first query.
 - IndicCOMET failure behavior passed an API unit test. A real IndicCOMET score, microphone recording, actual shortcut installation, and uninstall have not been verified here. A clean installation needs more free disk space than was available after staging the 8.14 GiB bundle and 8.14 GiB setup data file.
 
+## UI follow-up fixes (2026-09-28)
+
+- Typed-text detection now handles any nonempty input, including short words. Failed detection is shown as unavailable rather than a successful English fallback. The source selector is 50 px tall with 16 px text; mode tabs are 48 px tall.
+- Knowledge Assistant is renamed Bhasha Agent in the app, backend labels, model identity, and demo guide. Brand, mode, source/result, and agent controls use the existing English/Hindi/Marathi glossary. The supplied `icon.jpg` and `icon.ico` are copied unchanged into frontend public assets.
+- All result types share an “Ask follow up question” action. It opens Bhasha Agent, focuses the question input, and attaches source/translated excerpts to the existing chat history request. The user can remove that context. No extra model, service, or dependency was added.
+- Verified: frontend production builds; six persistence tests; Python compilation; live/browser English, Hindi, and Marathi detection; manual source override; clearing input; localized headers/results; both loaded logos; favicon HTTP 200 and matching asset hashes; saved text/audio/PDF/video reopening and follow-up navigation. A new typed-text translation to Marathi completed in 3.44 seconds; its Q&A follow-up answered correctly in 48.59 seconds.
+- `npm run lint` still reports 19 errors and one warning in existing lint issues. Backend process measurements after Q&A were about 5.89 GB working set and 7.47 GB lifetime peak; these are process measurements, not a clean benchmark of this change. The previously generated installer has not been rebuilt for these UI changes.
+
 ## Rebuilding the installer
 
 Build the frontend, then run `installer/build_offline.ps1` with paths for a standalone Python 3.13 base, the app's tested `site-packages`, the official `torch-2.12.0+cpu` Windows wheel, FFmpeg/Poppler/Tesseract binary directories, the local Hugging Face hub cache, and Inno Setup 6's `ISCC.exe`. The script validates the portable runtime before compiling. If an IndicCOMET checkpoint is later available, place it at `server/models/indic-comet/checkpoints/model.ckpt` with its `hparams.yaml` one directory above and install `unbabel-comet` in the bundled Python runtime before building.

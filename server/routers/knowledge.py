@@ -1,5 +1,5 @@
 """
-Bhasha Node - Knowledge Assistant Router
+Bhasha Node - Bhasha Agent Router
 API endpoints for:
 - RAG question answering with grounding & multi-turn history
 - Knowledge Base FAISS index rebuilding
@@ -61,7 +61,7 @@ async def ask_knowledge(request: AskRequest):
     Supports English, Hindi, and Marathi with automatic translation and grounding.
     """
     if not _rag_pipeline:
-        raise HTTPException(status_code=500, detail="Knowledge Assistant RAG pipeline is not initialized.")
+        raise HTTPException(status_code=500, detail="Bhasha Agent RAG pipeline is not initialized.")
 
     history_dicts = [{"role": m.role, "content": m.content} for m in request.history] if request.history else []
     result = _rag_pipeline.answer_question(

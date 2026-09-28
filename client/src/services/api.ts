@@ -237,7 +237,7 @@ export async function fetchSystemStats(): Promise<SystemStats> {
 }
 
 // ==========================================
-// KNOWLEDGE ASSISTANT (RAG)
+// BHASHA AGENT (RAG)
 // ==========================================
 export interface KnowledgeSource {
   id?: number;
@@ -283,8 +283,8 @@ export async function askKnowledge(
     }),
   });
   if (!res.ok) {
-    const err = await res.json().catch(() => ({ detail: "Failed to query Knowledge Assistant" }));
-    throw new Error(err.detail || "Failed to query Knowledge Assistant");
+    const err = await res.json().catch(() => ({ detail: "Failed to query Bhasha Agent" }));
+    throw new Error(err.detail || "Failed to query Bhasha Agent");
   }
   return res.json();
 }

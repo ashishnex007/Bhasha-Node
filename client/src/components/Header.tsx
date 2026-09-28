@@ -6,6 +6,8 @@ import {
   Globe,
   Sparkles,
   Layers,
+  PanelLeftClose,
+  PanelLeftOpen,
 } from 'lucide-react';
 
 import {
@@ -20,6 +22,8 @@ interface HeaderProps {
   onToggleDarkMode: () => void;
   onOpenHistory: () => void;
   onOpenSTM: () => void;
+  systemVisible: boolean;
+  onToggleSystem: () => void;
 }
 
 export default function Header({
@@ -29,6 +33,8 @@ export default function Header({
   onToggleDarkMode,
   onOpenHistory,
   onOpenSTM,
+  systemVisible,
+  onToggleSystem,
 }: HeaderProps) {
   const {
     t,
@@ -62,22 +68,20 @@ export default function Header({
 
   return (
     <header
-      className={`h-16 px-5 flex items-center justify-between border-b shrink-0 transition-colors ${
+      className={`min-h-20 px-5 py-3 flex flex-wrap gap-3 items-center justify-between border-b shrink-0 transition-colors ${
         darkMode
           ? 'bg-[#0c0c14] border-white/[0.06]'
           : 'bg-white border-black/[0.06]'
       }`}
     >
       {/* Logo & Mode Tabs */}
-      <div className="flex items-center gap-6">
+      <div className="flex flex-wrap items-center gap-12">
         <div className="flex items-center gap-3">
-          <div className="h-9 w-9 bg-indigo-600 rounded-xl flex items-center justify-center text-white text-sm font-extrabold shadow-lg shadow-indigo-600/20">
-            B
-          </div>
+          <img src={`${import.meta.env.BASE_URL}icon.jpg`} alt={t('app.brand')} className="h-11 w-11 object-contain bg-white rounded-xl shadow-lg shadow-indigo-600/20 shrink-0" />
 
           <div>
-            <span className="font-bold text-sm tracking-tight">
-              Bhasha Node
+            <span className="font-bold text-base tracking-tight whitespace-nowrap">
+              {t('app.brand')}
             </span>
 
             <span
@@ -102,7 +106,8 @@ export default function Header({
         >
           <button
             onClick={() => onSelectTab('translate')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-2 transition-all ${
+            aria-pressed={activeTab === 'translate'}
+            className={`px-5 py-3 min-h-12 rounded-lg text-base font-bold flex items-center gap-2 transition-all ${
               activeTab === 'translate'
                 ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/20'
                 : darkMode
@@ -110,13 +115,14 @@ export default function Header({
                 : 'text-zinc-600 hover:text-zinc-900'
             }`}
           >
-            <Layers size={16} />
-            Translation Studio
+            <Layers size={21} />
+            {t('header.translationStudio')}
           </button>
 
           <button
             onClick={() => onSelectTab('knowledge')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-2 transition-all ${
+            aria-pressed={activeTab === 'knowledge'}
+            className={`px-5 py-3 min-h-12 rounded-lg text-base font-bold flex items-center gap-2 transition-all ${
               activeTab === 'knowledge'
                 ? 'bg-gradient-to-r from-emerald-500 to-indigo-600 text-white shadow-md shadow-emerald-500/20'
                 : darkMode
@@ -124,14 +130,26 @@ export default function Header({
                 : 'text-zinc-600 hover:text-zinc-900'
             }`}
           >
-            <Sparkles size={16} className={activeTab === 'knowledge' ? 'text-amber-300' : 'text-emerald-400'} />
-            Knowledge Assistant
+            <Sparkles size={21} className={activeTab === 'knowledge' ? 'text-amber-300' : 'text-emerald-400'} />
+            {t('header.agent')}
           </button>
         </div>
       </div>
 
       {/* Navigation */}
-      <nav className="flex items-center gap-1">
+      <nav className="flex flex-wrap items-center gap-1">
+        <button
+          onClick={onToggleSystem}
+          className={btn}
+          aria-controls="system-panel"
+          aria-expanded={systemVisible}
+          aria-label={t(systemVisible ? 'system.hide' : 'system.show')}
+          title={t(systemVisible ? 'system.hide' : 'system.show')}
+        >
+          {systemVisible ? <PanelLeftClose size={18} /> : <PanelLeftOpen size={18} />}
+          {t('system.title')}
+        </button>
+
         {/* History */}
         <button
           onClick={onOpenHistory}
@@ -175,7 +193,7 @@ export default function Header({
                 ? 'text-zinc-400'
                 : 'text-zinc-500'
             }`}
-            title="Language"
+            title={t('popup.title')}
           >
             <Globe size={18} />
           </div>

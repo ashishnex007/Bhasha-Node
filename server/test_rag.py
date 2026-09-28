@@ -1,5 +1,5 @@
 """
-Bhasha Node - Agricultural Knowledge Assistant Automated Verification Test Suite
+Bhasha Node - Bhasha Agent Automated Verification Test Suite
 Tests all 10 requirements:
 1. English Q&A
 2. Hindi Q&A
@@ -36,7 +36,7 @@ from services.rag_pipeline import RAGPipeline
 
 def run_tests():
     print("\n" + "=" * 70)
-    print("  AGRICULTURAL KNOWLEDGE ASSISTANT — VERIFICATION SUITE")
+    print("  AGRICULTURAL BHASHA AGENT — VERIFICATION SUITE")
     print("=" * 70)
 
     # 1. Populate Sample Agricultural Inferences into Database

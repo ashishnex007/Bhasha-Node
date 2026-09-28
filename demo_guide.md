@@ -1,6 +1,6 @@
 # 🌾 BHASHA NODE — The Ultimate Demo Readiness, Installation & Pitch Guide
 
-> **Enterprise Offline Multimodal AI & Agricultural Knowledge Assistant for Rural India**  
+> **Enterprise Offline Multimodal AI & Bhasha Agent for Rural India**
 > *100% Air-Gapped • CPU Optimized • Zero Cloud Dependency • Multilingual Voice & Vision*
 
 ---
@@ -104,7 +104,7 @@ python main.py
 > [5/7] Loading Video Service (FFmpeg pipeline)...
 > [6/7] Loading OCR Service (Tesseract)...
 > [7/7] Loading Language Detection Service (fastText LID)...
-> [8/8] Initializing Agricultural Knowledge Assistant (FAISS & Lazy Qwen3-4B)...
+> [8/8] Initializing Bhasha Agent (FAISS & Lazy Qwen3-4B)...
 > ============================================================
 >   AI CORE READY — Multimodal Pipelines & Knowledge Base active
 > ============================================================
@@ -128,7 +128,7 @@ npm run dev
 
 ## 4. ✨ Comprehensive Feature Showcase
 
-Bhasha Node is structured into two core AI modalities: **Multimodal Media Ingestion** and the **Agricultural Knowledge Assistant (RAG)**.
+Bhasha Node is structured into two core AI modalities: **Multimodal Media Ingestion** and the **Bhasha Agent (RAG)**.
 
 ```
                          ┌──────────────────────────────────────────────────────────┐
@@ -138,7 +138,7 @@ Bhasha Node is structured into two core AI modalities: **Multimodal Media Ingest
                    ┌───────────────────────────────────┴───────────────────────────────────┐
                    ▼                                                                       ▼
    ┌───────────────────────────────┐                                       ┌───────────────────────────────┐
-   │    MULTIMODAL INGESTION       │                                       │  KNOWLEDGE ASSISTANT (RAG)    │
+   │    MULTIMODAL INGESTION       │                                       │  BHASHA AGENT (RAG)           │
    ├───────────────────────────────┤                                       ├───────────────────────────────┤
    │ • Text Translation            │                                       │ • Semantic Search (FAISS)     │
    │ • Voice Ingestion (Whisper)   │                                       │ • Offline LLM (Qwen3-4B GGUF) │
@@ -206,9 +206,9 @@ Bhasha Node is structured into two core AI modalities: **Multimodal Media Ingest
 
 ---
 
-### ⏱️ Minute 3:30 – 5:30 | Agricultural Knowledge Assistant (RAG with Local Qwen3-4B)
+### ⏱️ Minute 3:30 – 5:30 | Bhasha Agent (RAG with Local Qwen3-4B)
 > *"Now, the crown jewel: Bhasha Node doesn't just translate — it understands and reasons over all processed documents."*
-1. **Switch to 'Knowledge Assistant' Tab:**
+1. **Switch to 'Bhasha Agent' Tab:**
    - Point out the **FAISS chunk counter** showing indexed agricultural knowledge.
 2. **Ask a Query in Hindi via Mic or Text:**
    - Query: `नकदी फसल क्या है और इसके क्या फायदे हैं?` *(What is a cash crop and what are its benefits?)*

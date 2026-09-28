@@ -93,7 +93,7 @@ export default function TaskForm({kind, languages, onSubmit}: Props) {
       <label htmlFor="source-file">Choose {kind === 'ocr' ? 'a PDF or image' : kind === 'audio' ? 'an audio file' : 'a video file'}</label>
       <div className="upload-zone" onDragOver={event => event.preventDefault()} onDrop={event => {event.preventDefault(); void selectFile(event.dataTransfer.files[0]);}}>
         <input id="source-file" type="file" accept={accept[kind]} onChange={event => void selectFile(event.target.files?.[0] || null)} />
-        <span>{file ? file.name : 'Drop a file here or choose one from your device'}</span>
+        <span>{file ? file.name : 'Upload a file here or choose one from your device'}</span>
       </div>
       {kind === 'audio' && <button type="button" className="secondary-button" onClick={() => void toggleRecording()}>{recording ? 'Stop recording' : 'Record your voice'}</button>}
     </>}

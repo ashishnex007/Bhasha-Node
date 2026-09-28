@@ -20,7 +20,9 @@ import {
   Info,
   BookOpen,
   Brain,
+  X,
 } from 'lucide-react';
+import { useLanguage } from '../i18n/LanguageContext';
 
 import {
   askKnowledge,
@@ -45,8 +47,18 @@ export interface ChatMessage {
   timestamp: string;
 }
 
-interface KnowledgeAssistantProps {
+interface BhashaAgentProps {
   darkMode: boolean;
+  translationContext: FollowUpTranslation | null;
+  onRemoveContext: () => void;
+}
+
+export interface FollowUpTranslation {
+  jobId: string;
+  originalText: string;
+  translatedText: string;
+  sourceLanguage: string;
+  targetLanguage: string;
 }
 
 const EXAMPLE_QUESTIONS = [
@@ -90,7 +102,8 @@ function parseThinkBlock(raw: string): { think: string | null; answer: string } 
   return { think: null, answer: raw.trim() };
 }
 
-export default function KnowledgeAssistant({ darkMode }: KnowledgeAssistantProps) {
+export default function BhashaAgent({ darkMode, translationContext, onRemoveContext }: BhashaAgentProps) {
+  const { t } = useLanguage();
 
   const [messages, setMessages] = useState<ChatMessage[]>(() => {
     const saved = localStorage.getItem('baif_chat_history');
@@ -127,6 +140,10 @@ export default function KnowledgeAssistant({ darkMode }: KnowledgeAssistantProps
   const chatBottomRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const audioPlayerRef = useRef<HTMLAudioElement | null>(null);
+
+  useEffect(() => {
+    if (translationContext) textareaRef.current?.focus();
+  }, [translationContext]);
 
   // Save conversation history to local storage
   useEffect(() => {
@@ -193,10 +210,15 @@ export default function KnowledgeAssistant({ darkMode }: KnowledgeAssistantProps
     setIsLoading(true);
 
     // Build past history (last 6 messages)
-    const historyPayload = newMessages.slice(0, -1).map((m) => ({
+    const historyPayload = newMessages.slice(0, -1).slice(-5).map((m) => ({
       role: m.role,
       content: m.content,
     }));
+    if (translationContext) {
+      // Keep translation context within the existing local model's chat window.
+      const excerpt = (text: string) => text.length > 2000 ? `${text.slice(0, 2000)}…` : text;
+      historyPayload.push({ role: 'user', content: `Translation being discussed (${translationContext.sourceLanguage} → ${translationContext.targetLanguage}):\nOriginal:\n${excerpt(translationContext.originalText)}\nTranslation:\n${excerpt(translationContext.translatedText)}` });
+    }
 
     try {
       const response = await askKnowledge(query, historyPayload, true);
@@ -229,9 +251,10 @@ export default function KnowledgeAssistant({ darkMode }: KnowledgeAssistantProps
   };
 
   const handleClearChat = () => {
-    if (window.confirm('Are you sure you want to clear this conversation?')) {
+    if (window.confirm(t('agent.clearConfirm'))) {
       setMessages([]);
       localStorage.removeItem('baif_chat_history');
+      onRemoveContext();
     }
   };
 
@@ -371,7 +394,7 @@ export default function KnowledgeAssistant({ darkMode }: KnowledgeAssistantProps
   const muted = darkMode ? 'text-zinc-500' : 'text-zinc-400';
 
   return (
-    <div className="flex flex-col h-[calc(100vh-8rem)] max-w-4xl mx-auto animate-fadeUp">
+    <div className="flex flex-col h-full min-h-[32rem] max-w-4xl mx-auto animate-fadeUp">
       {/* ==========================================
           HEADER & KNOWLEDGE STATUS BAR
           ========================================== */}
@@ -383,13 +406,13 @@ export default function KnowledgeAssistant({ darkMode }: KnowledgeAssistantProps
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h2 className="text-base font-bold tracking-tight">Agricultural Knowledge Assistant</h2>
+                <h2 className="text-base font-bold tracking-tight">{t('header.agent')}</h2>
                 <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                  Offline Qwen3-4B
+                  {t('header.offline')} Qwen3-4B
                 </span>
               </div>
               <p className={`text-xs ${muted}`}>
-                Grounded answers from your processed agricultural documents in English, हिन्दी, & मराठी.
+                {t('agent.subtitle')}
               </p>
             </div>
           </div>
@@ -398,13 +421,13 @@ export default function KnowledgeAssistant({ darkMode }: KnowledgeAssistantProps
             <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs ${border} ${darkMode ? 'bg-white/[0.02]' : 'bg-black/[0.02]'}`}>
               <Database size={16} className="text-indigo-400" />
               <span className="font-semibold">{status?.indexed_chunks ?? 0}</span>
-              <span className={muted}>chunks</span>
+              <span className={muted}>{t('agent.chunks')}</span>
             </div>
 
             <button
               onClick={handleRebuild}
               disabled={isRebuilding}
-              title="Re-index all documents in the database into the FAISS vector store"
+              title={t('agent.reindex')}
               className={`px-3 py-1.5 rounded-xl border text-xs font-semibold flex items-center gap-1.5 transition-all ${
                 isRebuilding
                   ? 'opacity-60 cursor-not-allowed'
@@ -416,12 +439,12 @@ export default function KnowledgeAssistant({ darkMode }: KnowledgeAssistantProps
               {isRebuilding ? (
                 <>
                   <Loader2 size={15} className="animate-spin text-indigo-400" />
-                  Indexing...
+                  {t('agent.indexing')}
                 </>
               ) : (
                 <>
                   <RotateCcw size={15} />
-                  Re-index KB
+                  {t('agent.reindex')}
                 </>
               )}
             </button>
@@ -431,7 +454,7 @@ export default function KnowledgeAssistant({ darkMode }: KnowledgeAssistantProps
                 onClick={handleClearChat}
                 className={`px-3 py-1.5 rounded-xl border text-xs font-semibold text-rose-400 hover:bg-rose-500/10 transition-colors ${border}`}
               >
-                Clear
+                {t('agent.clear')}
               </button>
             )}
           </div>
@@ -473,9 +496,9 @@ export default function KnowledgeAssistant({ darkMode }: KnowledgeAssistantProps
             </div>
 
             <div className="max-w-md space-y-1.5">
-              <h3 className="text-lg font-bold">Ask anything about your agricultural knowledge</h3>
+              <h3 className="text-lg font-bold">{t('agent.welcome')}</h3>
               <p className={`text-xs ${muted}`}>
-                Questions are answered strictly from the knowledge indexed in your Bhasha Node database. No hallucinations.
+                {t('agent.grounding')}
               </p>
             </div>
 
@@ -572,7 +595,7 @@ export default function KnowledgeAssistant({ darkMode }: KnowledgeAssistantProps
                             ) : (
                               <Volume2 size={14} />
                             )}
-                            {isPlaying ? 'Pause Voice' : 'Listen Voice'}
+                            {t(isPlaying ? 'agent.pause' : 'agent.listen')}
                           </button>
                         )}
                       </div>
@@ -592,10 +615,10 @@ export default function KnowledgeAssistant({ darkMode }: KnowledgeAssistantProps
                       >
                         <span className="flex items-center gap-1.5">
                           <Brain size={16} />
-                          AI Reasoning Trace
+                          {t('agent.reasoning')}
                           <span className={`px-1.5 py-0.5 rounded-full text-[9px] font-bold ${
                             darkMode ? 'bg-violet-500/15 text-violet-400' : 'bg-violet-100 text-violet-600'
-                          }`}>internal</span>
+                          }`}>{t('agent.internal')}</span>
                         </span>
                         {thinkExpanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
                       </button>
@@ -623,7 +646,7 @@ export default function KnowledgeAssistant({ darkMode }: KnowledgeAssistantProps
                       >
                         <span className="flex items-center gap-1.5">
                           <BookOpen size={16} />
-                          Verified Grounded Sources ({msg.sources.length})
+                          {t('agent.sources')} ({msg.sources.length})
                         </span>
                         {sourcesExpanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
                       </button>
@@ -649,7 +672,7 @@ export default function KnowledgeAssistant({ darkMode }: KnowledgeAssistantProps
                                   {src.source}
                                 </span>
                                 <span className="px-1.5 py-0.5 rounded bg-indigo-500/10 text-indigo-400 font-mono text-[10px]">
-                                  {src.score}% match
+                                  {src.score}% {t('agent.match')}
                                 </span>
                               </div>
                               <p className={`text-[11px] leading-relaxed italic ${muted}`}>
@@ -687,8 +710,8 @@ export default function KnowledgeAssistant({ darkMode }: KnowledgeAssistantProps
             <div className={`p-4 rounded-2xl rounded-tl-sm border ${border} ${darkMode ? 'bg-white/[0.04]' : 'bg-zinc-100'} flex items-center gap-3`}>
               <Loader2 size={18} className="animate-spin text-indigo-400" />
               <div className="space-y-0.5">
-                <p className="text-xs font-semibold">Retrieving agricultural knowledge & reasoning...</p>
-                <p className={`text-[10px] ${muted}`}>Grounding strictly from indexed documents via Qwen3-4B</p>
+                <p className="text-xs font-semibold">{t('agent.loading')}</p>
+                <p className={`text-[10px] ${muted}`}>{t('agent.groundedLoading')}</p>
               </div>
             </div>
           </div>
@@ -701,6 +724,17 @@ export default function KnowledgeAssistant({ darkMode }: KnowledgeAssistantProps
           INPUT BAR (Text + Mic + Send)
           ========================================== */}
       <div className={`p-3 rounded-2xl border ${border} ${cardBg} shadow-lg shrink-0`}>
+        {translationContext && <div className={`mb-3 p-3 rounded-xl border ${border} bg-indigo-500/5`}>
+          <div className="flex items-center justify-between gap-2">
+            <details className="min-w-0 flex-1">
+              <summary className="cursor-pointer text-sm font-semibold text-indigo-400">{t('agent.translationContext')}</summary>
+              <p className="mt-2 text-xs whitespace-pre-wrap max-h-32 overflow-y-auto">{translationContext.originalText}</p>
+              <p className="mt-2 text-xs whitespace-pre-wrap max-h-32 overflow-y-auto">{translationContext.translatedText}</p>
+            </details>
+            <button onClick={onRemoveContext} aria-label={t('agent.removeContext')} className="p-2 rounded-lg hover:bg-indigo-500/10"><X size={16} /></button>
+          </div>
+          <p className={`mt-1 text-xs ${muted}`}>{t('agent.contextHint')}</p>
+        </div>}
         {/* Recording active state */}
         {isRecording ? (
           <div className="flex items-center justify-between p-2">
@@ -710,7 +744,7 @@ export default function KnowledgeAssistant({ darkMode }: KnowledgeAssistantProps
                 <span className="relative inline-flex rounded-full h-3 w-3 bg-red-500" />
               </span>
               <span className="text-xs font-bold text-red-400">
-                Listening to farmer... ({recordSeconds}s)
+                {t('agent.recording')} ({recordSeconds}s)
               </span>
             </div>
             <button
@@ -718,13 +752,13 @@ export default function KnowledgeAssistant({ darkMode }: KnowledgeAssistantProps
               className="px-4 py-2 rounded-xl bg-red-500 hover:bg-red-600 text-white font-bold text-xs flex items-center gap-2 transition-colors shadow-md"
             >
               <Square size={14} fill="currentColor" />
-              Stop & Ask
+              {t('agent.stopAsk')}
             </button>
           </div>
         ) : isTranscribing ? (
           <div className="flex items-center justify-center gap-2.5 p-3 text-xs font-semibold text-indigo-400">
             <Loader2 size={18} className="animate-spin" />
-            Transcribing speech with Faster-Whisper...
+            {t('agent.transcribing')}
           </div>
         ) : (
           <div className="flex items-end gap-2">
@@ -732,7 +766,7 @@ export default function KnowledgeAssistant({ darkMode }: KnowledgeAssistantProps
             <button
               onClick={startRecording}
               disabled={isLoading}
-              title="Speak question in English, Marathi, or Hindi"
+              title={t('agent.speak')}
               className={`p-3 rounded-xl border transition-all ${border} ${
                 darkMode
                   ? 'hover:bg-white/[0.06] text-amber-400 hover:border-amber-500/40'
@@ -754,7 +788,7 @@ export default function KnowledgeAssistant({ darkMode }: KnowledgeAssistantProps
                   handleSend();
                 }
               }}
-              placeholder="Ask an agricultural question in English, हिन्दी, or मराठी... (Press Enter to send)"
+              placeholder={t('agent.placeholder')}
               className={`flex-1 p-2.5 text-sm rounded-xl outline-none resize-none bg-transparent ${
                 darkMode ? 'text-zinc-100 placeholder:text-zinc-600' : 'text-zinc-900 placeholder:text-zinc-400'
               }`}
@@ -763,6 +797,7 @@ export default function KnowledgeAssistant({ darkMode }: KnowledgeAssistantProps
             {/* Send Button */}
             <button
               onClick={() => handleSend()}
+              aria-label={t('agent.send')}
               disabled={!inputQuery.trim() || isLoading}
               className={`p-3 rounded-xl font-bold flex items-center justify-center transition-all ${
                 !inputQuery.trim() || isLoading

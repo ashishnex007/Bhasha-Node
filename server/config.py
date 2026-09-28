@@ -123,7 +123,7 @@ QUALITY_MEMORY_LIMIT_GB = float(os.environ.get("BHASHA_QUALITY_MEMORY_LIMIT_GB",
 FFMPEG_AUDIO_PARAMS = ["-acodec", "pcm_s16le", "-ar", "16000", "-ac", "1"]
 
 # ==========================================
-# KNOWLEDGE ASSISTANT (Qwen3-4B RAG)
+# BHASHA AGENT (Qwen3-4B RAG)
 # ==========================================
 QWEN_MODEL_PATH    = MODELS_DIR / "Qwen3-4B-Q4_K_M.gguf"
 INDIC_COMET_CHECKPOINT = MODELS_DIR / "indic-comet" / "checkpoints" / "model.ckpt"

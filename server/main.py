@@ -102,7 +102,7 @@ def startup_event():
     print("[7/7] Loading Language Detection Service (fastText LID)...")
     lang_detector = LanguageDetectionService()
 
-    print("[8/8] Initializing Agricultural Knowledge Assistant (FAISS & Lazy Qwen3-4B)...")
+    print("[8/8] Initializing Bhasha Agent (FAISS & Lazy Qwen3-4B)...")
     kb_service = KnowledgeBase()
     qwen_service = QwenEngine()
     rag_pipeline = RAGPipeline(

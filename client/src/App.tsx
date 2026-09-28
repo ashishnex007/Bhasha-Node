@@ -14,7 +14,7 @@ import ResultViewer from './components/ResultViewer';
 import HistoryDrawer from './components/HistoryDrawer';
 import STMModal from './components/STMModal';
 import LanguagePopup from './components/LanguagePopup';
-import KnowledgeAssistant from './components/KnowledgeAssistant';
+import BhashaAgent, { type FollowUpTranslation } from './components/BhashaAgent';
 
 import { useLanguage } from './i18n/LanguageContext';
 
@@ -48,8 +48,10 @@ export default function App() {
   // ==========================================
 
   const [darkMode, setDarkMode] = useState(true);
+  const [systemVisible, setSystemVisible] = useState(true);
 
   const [activeMode, setActiveMode] = useState<'translate' | 'knowledge'>('translate');
+  const [followUpTranslation, setFollowUpTranslation] = useState<FollowUpTranslation | null>(null);
 
   const [view, setView] = useState<AppView>('input');
 
@@ -453,48 +455,39 @@ export default function App() {
 
   return (
     <div
-      className={`flex h-screen transition-colors duration-200 ${
+      className={`flex flex-col h-screen transition-colors duration-200 ${
         darkMode
           ? 'bg-[#09090f] text-zinc-100'
           : 'bg-zinc-50 text-zinc-900'
       }`}
     >
 
+      <Header
+        darkMode={darkMode}
+        activeTab={activeMode}
+        onSelectTab={setActiveMode}
+        onToggleDarkMode={() => setDarkMode(!darkMode)}
+        onOpenHistory={() => setHistoryOpen(true)}
+        onOpenSTM={() => setSTMOpen(true)}
+        systemVisible={systemVisible}
+        onToggleSystem={() => setSystemVisible(visible => !visible)}
+      />
+
+      <div className="flex flex-1 min-h-0">
+
       {/* ======================================
           SIDEBAR
           ====================================== */}
 
       <aside
-        className={`w-52 flex flex-col border-r shrink-0 transition-colors ${
+        id="system-panel"
+        hidden={!systemVisible}
+        className={`w-52 ${systemVisible ? 'flex' : 'hidden'} flex-col border-r shrink-0 transition-colors ${
           darkMode
             ? 'bg-[#0c0c14] border-white/[0.06]'
             : 'bg-white border-black/[0.06]'
         }`}
       >
-
-        {/* LOGO */}
-
-        <div className="p-5 pb-4">
-          <div className="flex items-center gap-3">
-
-            <div className="h-8 w-8 bg-indigo-600 rounded-xl flex items-center justify-center text-white text-xs font-extrabold shadow-md shadow-indigo-600/20">
-              B
-            </div>
-
-            <span className="text-sm font-bold tracking-tight">
-              Bhasha Node
-            </span>
-
-          </div>
-        </div>
-
-        <div
-          className={`mx-4 h-px ${
-            darkMode
-              ? 'bg-white/[0.04]'
-              : 'bg-black/[0.04]'
-          }`}
-        />
 
         {/* TELEMETRY */}
 
@@ -523,18 +516,7 @@ export default function App() {
           MAIN
           ====================================== */}
 
-      <main className="flex-1 flex flex-col h-screen overflow-hidden">
-
-        {/* HEADER */}
-
-        <Header
-          darkMode={darkMode}
-          activeTab={activeMode}
-          onSelectTab={setActiveMode}
-          onToggleDarkMode={() => setDarkMode(!darkMode)}
-          onOpenHistory={() => setHistoryOpen(true)}
-          onOpenSTM={() => setSTMOpen(true)}
-        />
+      <main className="flex-1 min-w-0 flex flex-col overflow-hidden">
 
         {/* CONTENT */}
 
@@ -542,7 +524,7 @@ export default function App() {
 
           {activeMode === 'knowledge' ? (
             <div className="p-6 h-full">
-              <KnowledgeAssistant darkMode={darkMode} />
+              <BhashaAgent darkMode={darkMode} translationContext={followUpTranslation} onRemoveContext={() => setFollowUpTranslation(null)} />
             </div>
           ) : (
             <div className={`${view === 'result' ? 'max-w-5xl' : 'max-w-2xl'} mx-auto px-6 py-8`}>
@@ -639,6 +621,16 @@ export default function App() {
 
                     job={currentJob}
                     capabilities={capabilities}
+                    onAskFollowUp={() => {
+                      setFollowUpTranslation({
+                        jobId: currentJob?.job_id || '',
+                        originalText: currentResult.original_text || '',
+                        translatedText: currentResult.translated_text || '',
+                        sourceLanguage: currentJob?.source_language || currentResult.detected_source_language || '',
+                        targetLanguage: currentJob?.target_language || '',
+                      });
+                      setActiveMode('knowledge');
+                    }}
                   />
                 )}
 
@@ -648,6 +640,7 @@ export default function App() {
         </div>
 
       </main>
+      </div>
 
       {/* ======================================
           OVERLAYS

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Terminal } from 'lucide-react';
+import { useLanguage } from '../i18n/LanguageContext';
 
 interface LogEntry {
   id: number;
@@ -29,6 +30,7 @@ export default function ActivityLog({
   jobType,
   targetLanguage,
 }: ActivityLogProps) {
+  const { t } = useLanguage();
   const [log, setLog] = useState<LogEntry[]>([]);
   const bottomRef = useRef<HTMLDivElement>(null);
 
@@ -86,14 +88,14 @@ export default function ActivityLog({
       {/* Header */}
       <div className="flex items-center justify-between px-4 pt-3 pb-2">
         <h3 className={`text-[10px] font-semibold uppercase tracking-widest flex items-center gap-1.5 ${muted}`}>
-          <Terminal size={9} /> Activity
+          <Terminal size={9} /> {t('activity.title')}
         </h3>
         {log.length > 0 && (
           <button
             onClick={() => setLog([])}
             className={`text-[9px] ${muted} hover:text-zinc-300 transition-colors`}
           >
-            clear
+            {t('activity.clear')}
           </button>
         )}
       </div>
@@ -101,7 +103,7 @@ export default function ActivityLog({
       {/* Log entries */}
       <div className="flex-1 overflow-y-auto max-h-36 px-2 pb-2 space-y-0.5 scrollbar-thin">
         {log.length === 0 ? (
-          <p className={`text-[10px] px-2 ${muted} italic`}>No activity yet…</p>
+          <p className={`text-[10px] px-2 ${muted} italic`}>{t('activity.empty')}</p>
         ) : (
           log.map((entry) => (
             <div

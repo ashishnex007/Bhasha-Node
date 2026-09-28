@@ -15,6 +15,7 @@ import {
   Send,
   X,
   Languages,
+  Loader2,
 } from 'lucide-react';
 
 import { useLanguage } from '../i18n/LanguageContext';
@@ -51,6 +52,7 @@ export default function IngestionForm({
   capabilities,
 }: IngestionFormProps) {
   const { t } = useLanguage();
+  const languageLabel = (key: string, name: string) => ['english', 'hindi', 'marathi'].includes(key) ? t(`stm.${key}`) : name;
 
   const [file, setFile] =
     useState<File | null>(null);
@@ -82,11 +84,14 @@ export default function IngestionForm({
     sourceOverride || liveDetectedLang || detectedLanguage;
 
   useEffect(() => {
-    if (rawText.trim().length < 12) return;
+    if (!rawText.trim()) return;
     let active = true;
     const timer = setTimeout(() => {
       detectLanguage(rawText).then(result => {
-        if (active) { setLiveDetectedLang(result.language); setDetectionUnavailable(!result.available); }
+        if (active) {
+          setLiveDetectedLang(result.available ? result.language : undefined);
+          setDetectionUnavailable(!result.available);
+        }
       }).catch(() => { if (active) setDetectionUnavailable(true); });
     }, 450);
     return () => { active = false; clearTimeout(timer); };
@@ -154,6 +159,9 @@ export default function IngestionForm({
 
     setFile(f);
     setFileCategory(cat);
+    setRawText('');
+    setLiveDetectedLang(undefined);
+    setDetectionUnavailable(false);
 
     if (cat === 'text') {
       const reader = new FileReader();
@@ -584,6 +592,7 @@ export default function IngestionForm({
             onChange={(e) => {
               setRawText(e.target.value);
               setLiveDetectedLang(undefined);
+              setDetectionUnavailable(false);
             }}
             placeholder={t(
               'ingestion.placeholder'
@@ -690,20 +699,23 @@ export default function IngestionForm({
                     : 'bg-indigo-50 text-indigo-600 border border-indigo-200'
                 }`}
               >
-                <Languages size={16} />
+                {!effectiveLang && !detectionUnavailable ? <Loader2 size={18} className="animate-spin" /> : <Languages size={18} />}
 
                 {t(
-                  'ingestion.detectedSource'
+                  sourceOverride ? 'ingestion.selectedSource' : 'ingestion.detectedSource'
                 )}{' '}
 
-                {capabilities.find(lang => lang.iso === effectiveLang)?.name || (detectionUnavailable ? 'Unavailable — choose source' : 'Detecting…')}
+                {(() => {
+                  const language = capabilities.find(lang => lang.iso === effectiveLang);
+                  return language ? languageLabel(language.key, language.name) : effectiveLang || (detectionUnavailable ? t('ingestion.detectionUnavailable') : t('ingestion.detecting'));
+                })()}
               </div>
             )}
 
-            <label className={`block text-xs mb-3 ${muted}`}>Source language override
-              <select className={`block mt-1 rounded-xl p-2 border w-full ${darkMode ? 'bg-[#111118] border-white/[0.08]' : 'bg-white border-black/[0.08]'}`} value={sourceOverride} onChange={event => setSourceOverride(event.target.value)}>
-                <option value="">Auto detect</option>
-                {capabilities.filter(lang => lang.translation && (fileCategory !== 'ocr' || lang.ocr)).map(lang => <option key={lang.key} value={lang.iso}>{lang.name}</option>)}
+            <label className="block text-base font-semibold mb-4">{t('ingestion.sourceOverride')}
+              <select className={`block mt-2 rounded-xl px-4 py-3 min-h-12 border-2 w-full text-base font-medium focus:ring-2 focus:ring-indigo-500/30 ${darkMode ? 'bg-[#111118] border-white/[0.12] text-zinc-100' : 'bg-white border-black/[0.12] text-zinc-900'}`} value={sourceOverride} onChange={event => setSourceOverride(event.target.value)}>
+                <option value="">{t('ingestion.autoDetect')}</option>
+                {capabilities.filter(lang => lang.translation && (fileCategory !== 'ocr' || lang.ocr)).map(lang => <option key={lang.key} value={lang.iso}>{languageLabel(lang.key, lang.name)}</option>)}
               </select>
             </label>
 
@@ -749,7 +761,7 @@ export default function IngestionForm({
                     >
                       <div className="flex items-center justify-between mb-1">
                         <span className="text-base font-bold">
-                          {native}
+                          {languageLabel(key, native)}
                         </span>
 
                         {targetLang ===
@@ -770,7 +782,7 @@ export default function IngestionForm({
                       >
                         {script}
                       </span>
-                      {!tts && <span className="block text-[10px] mt-1 opacity-70">No voice output</span>}
+                      {!tts && <span className="block text-[10px] mt-1 opacity-70">{t('ingestion.noVoice')}</span>}
                     </button>
                   );
                 }
