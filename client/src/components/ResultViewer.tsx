@@ -467,7 +467,7 @@ export default function ResultViewer({
         {videoSize && <span>{videoSize}</span>}
       </div>}
 
-      {result.original_text && result.translated_text && job?.job_id && <details className={`p-5 rounded-2xl border ${border} ${bg}`}>
+      {result.original_text && result.translated_text && job?.job_id && <details hidden className={`p-5 rounded-2xl border ${border} ${bg}`}>
         <summary className="cursor-pointer text-sm font-semibold flex items-center gap-2"><CheckCircle size={17} className="text-indigo-400" />{t('result.quality')}</summary>
         {qualityScore !== undefined && <p className="mt-3 text-sm font-semibold">IndicCOMET: {qualityScore.toFixed(3)}</p>}
         <p className={`text-xs mt-2 ${muted}`}>{t('result.qualityHelp')}</p>

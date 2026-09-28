@@ -1,6 +1,8 @@
 ; Compile after build_offline.ps1 has created a complete offline bundle.
 #define AppName "Bhasha Node"
-#define AppVersion "2.1.0"
+#ifndef AppVersion
+#define AppVersion "2.1.1"
+#endif
 
 [Setup]
 AppId={{A6CCF716-4CD3-4EEA-8A2B-BA7BD60A0C7E}
